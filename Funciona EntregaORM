@@ -127,13 +127,13 @@ def alta_cliente(dni_cliente, nombre_cliente, apellido_cliente, mail_cliente, ce
         new_cliente.save()
 
     else:
-        print ("Cliente ya existe")
+        print ("Cliente ya existe hola")
 
     while Cuenta.select().where(Cuenta.usuario == usuario_cuenta).exists():
         print ("Nombre de usuario ya existe, elija otro: ")
         usuario_cuenta = input("Ingrese otro nombre de usuario: ")
 
-    new_cuenta = Cuenta.create(nro_cuenta = nro_cuentas, usuario = usuario_cuenta, dni = dni_cliente, fecha_creacion = date.today())
+    new_cuenta = Cuenta.create(dni = dni_cliente, nro_cuenta = nro_cuentas, usuario = usuario_cuenta, fecha_creacion = date.today())
     new_cuenta.save()
         #nro_cuentas = nro_cuentas + 1
 
