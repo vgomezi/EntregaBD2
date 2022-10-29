@@ -6,7 +6,7 @@ import peewee
 psql_db = peewee.PostgresqlDatabase('dbd2', host='localhost', port=8888,  user='dbd2g2', password='dbd2#G2')
 #host='127.0.0.1'
 
-nro_cuentas = 100
+nro_cuentas = 1
 
 class Cliente(peewee.Model):
     dni = peewee.IntegerField(primary_key= True)
@@ -129,15 +129,22 @@ def alta_cliente(dni_cliente, nombre_cliente, apellido_cliente, mail_cliente, ce
     else:
         print ("Cliente ya existe hola")
 
+    alta_cuenta(dni_cliente, usuario_cuenta)
+
+
+
+def alta_cuenta(dni_cliente, usuario_cuenta):
+    
     while Cuenta.select().where(Cuenta.usuario == usuario_cuenta).exists():
         print ("Nombre de usuario ya existe, elija otro: ")
         usuario_cuenta = input("Ingrese otro nombre de usuario: ")
 
     new_cuenta = Cuenta.create(dni = dni_cliente, nro_cuenta = nro_cuentas, usuario = usuario_cuenta, fecha_creacion = date.today())
     new_cuenta.save()
-        #nro_cuentas = nro_cuentas + 1
+    nro_cuentas = nro_cuentas + 1
 
     
+#modificacion cliente cuenta no
 
 def baja_cliente(dni_cliente):
 
@@ -148,6 +155,8 @@ def baja_cliente(dni_cliente):
 
         else:
             print ("Cliente no existe")
+
+        #hacer que se borre la cuenta tmb
 
 
 '''
