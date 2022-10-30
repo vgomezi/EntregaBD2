@@ -7,8 +7,6 @@ import peewee
 psql_db = peewee.PostgresqlDatabase('dbd2', host='localhost', port=8888,  user='dbd2g2', password='dbd2#G2')
 #host='127.0.0.1'
 
-nro_cuentas = 1
-
 class Cliente(peewee.Model):
     dni = peewee.IntegerField(primary_key= True)
     nombre = peewee.CharField()
@@ -29,7 +27,7 @@ class Cliente(peewee.Model):
         psql_db.connect
 
 class Cuenta(peewee.Model):
-    nro_cuenta = peewee.IntegerField(primary_key=True)
+    nro_cuenta = peewee.AutoField()
     usuario = peewee.CharField(unique = True)
     dni = peewee.ForeignKeyField(Cliente, column_name = 'dni', to_field='dni')
     fecha_creacion = peewee.DateField()
@@ -53,7 +51,7 @@ class Tarjeta(peewee.Model):
 
 
 class PedidoCompuesto(peewee.Model):
-    id = peewee.IntegerField(primary_key=True)
+    id = peewee.AutoField()
     fecha = peewee.DateField()
     canal_compra = peewee.CharField()
     dni_cliente = peewee.ForeignKeyField(Cliente, column_name= 'dni_cliente', to_field='dni')
@@ -97,7 +95,7 @@ class Producto(peewee.Model):
     nombre = peewee.CharField()
     precio = peewee.FloatField()
     stock = peewee.IntegerField()
-    qr = peewee.BlobField()
+    qr = peewee.BlobField(null=True)
 
     class Meta():
         database = psql_db
@@ -106,7 +104,7 @@ class Producto(peewee.Model):
         psql_db.connect
 
 class ProductoPedido(peewee.Model):
-    cod_producto = peewee.ForeignKeyField(Producto, column_name = 'cod_producto', to_field='cod_prod')
+    cod_prod = peewee.ForeignKeyField(Producto, column_name = 'cod_prod', to_field='cod_prod')
     id_pedido_simple = peewee.ForeignKeyField(PedidoSimple, column_name = 'id_pedido_simple', to_field='id')
     cantidad = peewee.IntegerField()
 
@@ -140,12 +138,9 @@ def alta_cuenta(dni_cliente, usuario_cuenta):
         print ("Nombre de usuario ya existe, elija otro: ")
         usuario_cuenta = input("Ingrese otro nombre de usuario: ")
 
-    global nro_cuentas
-    new_cuenta = Cuenta.create(dni = dni_cliente, nro_cuenta = nro_cuentas, usuario = usuario_cuenta, fecha_creacion = date.today())
+    new_cuenta = Cuenta.create(dni = dni_cliente, usuario = usuario_cuenta, fecha_creacion = date.today()) #nro cuentas no se lo pasamos porque lo autogenera
     new_cuenta.save()
-    nro_cuentas = nro_cuentas + 1
 
-    
 #modificacion cliente cuenta no
 
 def baja_cliente(dni_cliente):
@@ -202,14 +197,36 @@ def alta_pedido_simple(dni_cliente_i,precio_total_i,estado_i,fecha_obj_i, canal_
         if nro_pedido_compuesto_i:
             new_pedido_s = PedidoSimple.create(precio_total = precio_total_i, estado = estado_i, fecha = fecha_obj_i, canal_compra = canal_compra_i, nro_pedido_compuesto = nro_pedido_compuesto_i, dni_cliente = dni_cliente_i)
             new_pedido_s.save()
+            return new_pedido_s.id
         else:
             new_pedido_s = PedidoSimple.create(precio_total = precio_total_i, estado = estado_i, fecha = fecha_obj_i, canal_compra = canal_compra_i, nro_pedido_compuesto = None, dni_cliente = dni_cliente_i)
             new_pedido_s.save()
-
+            return new_pedido_s.id
 
     else:
         print ("Error: cliente no existe")
 
+def alta_producto(cod_prod_i,nombre_i,precio_i,stock_i,qr_i):
+    if qr_i:
+        new_producto = Producto.create(cod_prod = cod_prod_i, nombre = nombre_i, precio = precio_i, stock = stock_i, qr = qr_i)
+        new_producto.save()
+    else:
+        new_producto = Producto.create(cod_prod = cod_prod_i, nombre = nombre_i, precio = precio_i, stock = stock_i, qr= None)
+        new_producto.save()
+    
+def alta_producto_pedido(id_generado,cod_prod1,cant1):
+    
+    new = ProductoPedido.create(id_pedido_simple = id_generado, cod_prod = cod_prod1, cantidad= cant1)
+    new.save()
+
+def alta_pedido_compuesto(fecha_obj_i, canal_compra_i, dni_cliente_i):
+
+    if Cliente.select().where(Cliente.dni == dni_cliente_i).exists():
+        new_pedido_c = PedidoCompuesto.create(fecha = fecha_obj_i, canal_compra = canal_compra_i, dni_cliente = dni_cliente_i)
+        new_pedido_c.save()
+    else:
+        print ("Error: cliente no existe")
+    
     
 '''
 def baja_cliente_numero(numero):
@@ -329,7 +346,7 @@ if __name__ == '__main__':
             print("Alguno de los datos es inválido, vuelva a intentarlo")
 
     elif menu_principal==4:
-        #try:
+        try:
             dni_cliente_i = int(input("Ingrese el dni del cliente que lo realizó: "))
             precio_total_i = float(input("Ingrese el costo total: "))
             estado_i = input("Ingrese el estado en el que se encuentra: ")
@@ -337,10 +354,58 @@ if __name__ == '__main__':
             fecha_obj_i = datetime.datetime.strptime(fecha, '%d/%m/%Y')
             canal_compra_i = input("Ingrese el canal de compra (movil/web): ")
             nro_pedido_compuesto_i = input("Ingrese el n° de pedido compuesto al que pertenece, si corresponde: ")
-            alta_pedido_simple(dni_cliente_i,precio_total_i,estado_i,fecha_obj_i, canal_compra_i,nro_pedido_compuesto_i)
+
+            cod_prod1 = int(input("Ingrese el codigo de barras del producto pedido: "))
+            cant1 = int(input("Ingrese la cantidad (como máximo 20 unidades): "))
+
+            if Producto.get_by_id(cod_prod1).stock < cant1:
+                print("Error: la cantidad en stock no es suficiente para realizar el pedido")
+            else:
+                id_generado = alta_pedido_simple(dni_cliente_i,precio_total_i,estado_i,fecha_obj_i, canal_compra_i,nro_pedido_compuesto_i)
+
+                alta_producto_pedido(id_generado,cod_prod1,cant1)
+
+                cant_total = cant1
+
+                while cant_total < 20:
+                    respuesta = input("Desea ingresar otro producto? s/n: ")
+                    if respuesta == 's':
+                        cod_prod2 = int(input("Ingrese el codigo del producto pedido: "))
+                        cant2 = int(input("Ingrese la cantidad (como máximo 20 unidades): "))
+
+                        if Producto.get_by_id(cod_prod2).stock < cant2:
+                            print("Error: la cantidad en stock no es suficiente para realizar el pedido")
+                        else:
+                            cant_total = cant_total + cant2;
+                            if cant_total <= 20:
+                                alta_producto_pedido(id_generado, cod_prod2,cant2)
+                            else:
+                                print("Error: la cantidad total de productos no puede superar las 20 unidades")
+                    if respuesta == 'n':
+                        break
             print("ok 4")
+        except:
+            print("Alguno de los datos es inválido, vuelva a intentarlo")
+
+    elif menu_principal==5:
+        try:
+            dni_cliente_i = int(input('Ingrese el dni del cliente que lo realizó: '))
+            fecha = input("Ingrese la fecha en formato dd/mm/yyyy: ")
+            fecha_obj_i = datetime.datetime.strptime(fecha, '%d/%m/%Y')
+            canal_compra_i = input("Ingrese el canal de compra (movil/web): ")
+            alta_pedido_compuesto(fecha_obj_i, canal_compra_i, dni_cliente_i)
+        except:
+            print("Alguno de los datos es inválido, vuelva a intentarlo")
+    elif menu_principal==6:
+        #try:
+        cod_prod_i = int(input("Ingrese el codigo de barras: "))
+        nombre_i = input("Ingrese el nombre: ")
+        precio_i = float(input("Ingrese el precio: "))
+        stock_i = int(input("Ingrese la cantidad en stock: "))
+        qr_i = input("Ingrese el qr: ") #como ingresarian el qr?
+        alta_producto(cod_prod_i,nombre_i,precio_i,stock_i,qr_i)
+        print("ok 6")
         #except:
-        #    print("Alguno de los datos es inválido, vuelva a intentarlo")
 
 
     else:
@@ -357,10 +422,11 @@ if __name__ == '__main__':
 
     """Crear rutinas que permitan:
 − realizar el alta, baja y modificación de clientes 
-pronto, solo falta error al crear cuenta
+pronto
 − ingresar pedidos simples y compuesto, controlando las restricciones definidas
+#al agregar un pedido tmb se agrega una instancia de producto pedido y (no se baja el stock de producto porque se baja cuando se paga)
 − ingresar articulos en el stock
-− registrar el pago o no de los pedidos
+− registrar el pago o no de los pedidos (se actualiza el stock del producto segun la letra) dar opcion a registrar otros estados
 
 − Permitir listar
 − los pedidos en un estado dato, permitiendo filtro por rango de fechas
