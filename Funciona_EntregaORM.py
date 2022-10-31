@@ -82,7 +82,7 @@ class Cobro(peewee.Model):
     id_pedido = peewee.ForeignKeyField(PedidoSimple, column_name = 'id_pedido', to_field='id', primary_key=True)
     nro_cuenta = peewee.ForeignKeyField(Cuenta, column_name = 'nro_cuenta', to_field='nro_cuenta')
     aprobado = peewee.CharField()
-    nro_aprobacion = peewee.AutoField()
+    nro_aprobacion = peewee.IntegerField(null=True)
 
     class Meta():
         database = psql_db
@@ -234,6 +234,7 @@ def alta_pedido_compuesto(fecha_obj_i, canal_compra_i, dni_cliente_i):
     if Cliente.select().where(Cliente.dni == dni_cliente_i).exists():
         new_pedido_c = PedidoCompuesto.create(fecha = fecha_obj_i, canal_compra = canal_compra_i, dni_cliente = dni_cliente_i)
         new_pedido_c.save()
+        return new_pedido_c.id
     else:
         print ("Error: cliente no existe")
     
@@ -411,7 +412,32 @@ if __name__ == '__main__':
             fecha = input("Ingrese la fecha en formato dd/mm/yyyy: ")
             fecha_obj_i = datetime.datetime.strptime(fecha, '%d/%m/%Y')
             canal_compra_i = input("Ingrese el canal de compra (movil/web): ")
-            alta_pedido_compuesto(fecha_obj_i, canal_compra_i, dni_cliente_i)
+            id_generado = alta_pedido_compuesto(fecha_obj_i, canal_compra_i, dni_cliente_i)
+
+            id1 = int(input("Ingrese el id del primer pedido simple"))
+            if PedidoSimple.get_by_id(id1).exists():
+                PedidoSimple.update(nro_pedido_compuesto = id_generado).where(id=id1)
+            else:
+                print('Error: el id ingresado no existe.')
+            
+            id2= int(input("Ingrese el id del segundo pedido simple"))
+            if PedidoSimple.get_by_id(id2).exists():
+                PedidoSimple.update(nro_pedido_compuesto = id_generado).where(id=id2)
+            else:
+                print('Error: el id ingresado no existe.')
+
+            respuesta = input("Desea agregar otro pedido simple? s/n: ")
+            while respuesta == 's':
+                id_nuevo = int(input("Ingrese el id del pedido simple"))
+                if PedidoSimple.get_by_id(id_nuevo).exists():
+                    PedidoSimple.update(nro_pedido_compuesto = id_generado).where(id=id_nuevo)
+                else:
+                    print('Error: el id ingresado no existe.')
+                    
+                respuesta = input("Desea agregar otro pedido simple? s/n: ")
+            
+
+
             print("ok 5")
         except:
             print("Alguno de los datos es inválido, vuelva a intentarlo")
