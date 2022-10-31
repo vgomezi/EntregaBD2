@@ -346,46 +346,62 @@ if __name__ == '__main__':
             print("Alguno de los datos es inválido, vuelva a intentarlo")
 
     elif menu_principal==4:
-        try:
+        #try:
             dni_cliente_i = int(input("Ingrese el dni del cliente que lo realizó: "))
             precio_total_i = float(input("Ingrese el costo total: "))
             estado_i = input("Ingrese el estado en el que se encuentra: ")
-            fecha = input("Ingrese la fecha en formato dd/mm/yyyy: ")
-            fecha_obj_i = datetime.datetime.strptime(fecha, '%d/%m/%Y')
+            fecha_i = input("Ingrese la fecha en formato dd/mm/yyyy: ")
+            fecha_obj_i = datetime.datetime.strptime(fecha_i, '%d/%m/%Y')
             canal_compra_i = input("Ingrese el canal de compra (movil/web): ")
             nro_pedido_compuesto_i = input("Ingrese el n° de pedido compuesto al que pertenece, si corresponde: ")
+            
+            if PedidoCompuesto.select().where(PedidoCompuesto.id == nro_pedido_compuesto_i).exists():
+                print(type(PedidoCompuesto.get_by_id(nro_pedido_compuesto_i).fecha))
+                print(type(fecha_obj_i.date()))
+                print(PedidoCompuesto.get_by_id(nro_pedido_compuesto_i).fecha)
+                print(fecha_obj_i.date())
+                print(PedidoCompuesto.get_by_id(nro_pedido_compuesto_i).canal_compra)
+                print(canal_compra_i)
+                print(PedidoCompuesto.get_by_id(nro_pedido_compuesto_i).dni_cliente)
+                print(dni_cliente_i)
+                if ((PedidoCompuesto.get_by_id(nro_pedido_compuesto_i).fecha == fecha_obj_i.date()) and (PedidoCompuesto.get_by_id(nro_pedido_compuesto_i).canal_compra == canal_compra_i) and (PedidoCompuesto.get_by_id(nro_pedido_compuesto_i).dni_cliente == dni_cliente_i)):
+                    cod_prod1 = int(input("Ingrese el codigo de barras del producto pedido: "))
+                    cant1 = int(input("Ingrese la cantidad (como máximo 20 unidades): "))
 
-            cod_prod1 = int(input("Ingrese el codigo de barras del producto pedido: "))
-            cant1 = int(input("Ingrese la cantidad (como máximo 20 unidades): "))
+                    if Producto.get_by_id(cod_prod1).stock < cant1:
+                        print("Error: la cantidad en stock no es suficiente para realizar el pedido")
+                    else:
+                        id_generado = alta_pedido_simple(dni_cliente_i,precio_total_i,estado_i,fecha_obj_i, canal_compra_i,nro_pedido_compuesto_i)
 
-            if Producto.get_by_id(cod_prod1).stock < cant1:
-                print("Error: la cantidad en stock no es suficiente para realizar el pedido")
+                        alta_producto_pedido(id_generado,cod_prod1,cant1)
+
+                        cant_total = cant1
+
+                        while cant_total < 20:
+                            respuesta = input("Desea ingresar otro producto? s/n: ")
+                            if respuesta == 's':
+                                cod_prod2 = int(input("Ingrese el codigo del producto pedido: "))
+                                cant2 = int(input("Ingrese la cantidad (como máximo 20 unidades): "))
+
+                                if Producto.get_by_id(cod_prod2).stock < cant2:
+                                    print("Error: la cantidad en stock no es suficiente para realizar el pedido")
+                                else:
+                                    cant_total = cant_total + cant2;
+                                    if cant_total <= 20:
+                                        alta_producto_pedido(id_generado, cod_prod2,cant2)
+                                    else:
+                                        print("Error: la cantidad total de productos no puede superar las 20 unidades")
+                            if respuesta == 'n':
+                                break
+                    print("ok 4")
+
+                else:
+                    print ("Error: los datos del pedido compuesto no coinciden. Vuelva a intentarlo.")
             else:
-                id_generado = alta_pedido_simple(dni_cliente_i,precio_total_i,estado_i,fecha_obj_i, canal_compra_i,nro_pedido_compuesto_i)
-
-                alta_producto_pedido(id_generado,cod_prod1,cant1)
-
-                cant_total = cant1
-
-                while cant_total < 20:
-                    respuesta = input("Desea ingresar otro producto? s/n: ")
-                    if respuesta == 's':
-                        cod_prod2 = int(input("Ingrese el codigo del producto pedido: "))
-                        cant2 = int(input("Ingrese la cantidad (como máximo 20 unidades): "))
-
-                        if Producto.get_by_id(cod_prod2).stock < cant2:
-                            print("Error: la cantidad en stock no es suficiente para realizar el pedido")
-                        else:
-                            cant_total = cant_total + cant2;
-                            if cant_total <= 20:
-                                alta_producto_pedido(id_generado, cod_prod2,cant2)
-                            else:
-                                print("Error: la cantidad total de productos no puede superar las 20 unidades")
-                    if respuesta == 'n':
-                        break
-            print("ok 4")
-        except:
-            print("Alguno de los datos es inválido, vuelva a intentarlo")
+                print ("Error: el pedido compuesto ingresado no existe. Vuelva a intentarlo.")
+            
+        #except:
+        #    print("Alguno de los datos es inválido, vuelva a intentarlo")
 
     elif menu_principal==5:
         try:
