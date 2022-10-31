@@ -1,4 +1,5 @@
 
+
 from datetime import date
 import datetime 
 import peewee
@@ -81,7 +82,7 @@ class Cobro(peewee.Model):
     id_pedido = peewee.ForeignKeyField(PedidoSimple, column_name = 'id_pedido', to_field='id', primary_key=True)
     nro_cuenta = peewee.ForeignKeyField(Cuenta, column_name = 'nro_cuenta', to_field='nro_cuenta')
     aprobado = peewee.CharField()
-    nro_aprobacion = peewee.IntegerField()
+    nro_aprobacion = peewee.AutoField()
 
     class Meta():
         database = psql_db
@@ -102,6 +103,7 @@ class Producto(peewee.Model):
         db_table = 'producto'
         schema = 'dbd2g2'
         psql_db.connect
+
 
 class ProductoPedido(peewee.Model):
     cod_prod = peewee.ForeignKeyField(Producto, column_name = 'cod_prod', to_field='cod_prod')
@@ -149,11 +151,13 @@ def baja_cliente(dni_cliente):
             cliente = Cliente.get(Cliente.dni == dni_cliente)
             cliente.delete_instance()
 
+        if Cuenta.select().where(Cuenta.dni == dni_cliente).exists():
+            cuenta = Cuenta.get(Cuenta.dni == dni_cliente)
+            cuenta.delete_instance()
 
         else:
             print ("Error: cliente no existe")
 
-        #hacer que se borre la cuenta tmb
 
 def modificacion_cliente(dni_cliente, nombre_cliente, apellido_cliente, mail_cliente, cel_cliente, calle_cliente, nro_puerta_cliente, apartamento_cliente, cod_postal_cliente, departamento_cliente, localidad_cliente):
 
@@ -165,34 +169,36 @@ def modificacion_cliente(dni_cliente, nombre_cliente, apellido_cliente, mail_cli
             query = Cliente.update(apellido = apellido_cliente).where(Cliente.dni == dni_cliente)
             query.execute()
         if mail_cliente:
-            query =Cliente.update(mail = mail_cliente).where(Cliente.dni == dni_cliente)
+            query = Cliente.update(mail = mail_cliente).where(Cliente.dni == dni_cliente)
             query.execute()
         if cel_cliente:
-            query =Cliente.update(cel = int(cel_cliente)).where(Cliente.dni == dni_cliente)
+            query = Cliente.update(cel = int(cel_cliente)).where(Cliente.dni == dni_cliente)
             query.execute()
         if calle_cliente:
-            query =Cliente.update(calle = calle_cliente).where(Cliente.dni == dni_cliente)
+            query = Cliente.update(calle = calle_cliente).where(Cliente.dni == dni_cliente)
             query.execute()
         if nro_puerta_cliente:
-            query =Cliente.update(nro_puerta = nro_puerta_cliente).where(Cliente.dni == dni_cliente)
+            query = Cliente.update(nro_puerta = nro_puerta_cliente).where(Cliente.dni == dni_cliente)
             query.execute()
         if apartamento_cliente:
-            query =Cliente.update(apartamento = apartamento_cliente).where(Cliente.dni == dni_cliente)
+            query = Cliente.update(apartamento = apartamento_cliente).where(Cliente.dni == dni_cliente)
             query.execute()
         if cod_postal_cliente:
-            query =Cliente.update(cod_postal = int(cod_postal_cliente)).where(Cliente.dni == dni_cliente)
+            query = Cliente.update(cod_postal = int(cod_postal_cliente)).where(Cliente.dni == dni_cliente)
             query.execute()
         if departamento_cliente:
-            query =Cliente.update(departamento = departamento_cliente).where(Cliente.dni == dni_cliente)
+            query = Cliente.update(departamento = departamento_cliente).where(Cliente.dni == dni_cliente)
             query.execute()
         if localidad_cliente:
-            query =Cliente.update(localidad = localidad_cliente).where(Cliente.dni == dni_cliente)
+            query = Cliente.update(localidad = localidad_cliente).where(Cliente.dni == dni_cliente)
             query.execute()
 
     else:
         print ("Error: cliente no existe")
 
-def alta_pedido_simple(dni_cliente_i,precio_total_i,estado_i,fecha_obj_i, canal_compra_i,nro_pedido_compuesto_i):
+
+def alta_pedido_simple(dni_cliente_i, precio_total_i, estado_i, fecha_obj_i, canal_compra_i, nro_pedido_compuesto_i):
+
     if Cliente.select().where(Cliente.dni == dni_cliente_i).exists():
         if nro_pedido_compuesto_i:
             new_pedido_s = PedidoSimple.create(precio_total = precio_total_i, estado = estado_i, fecha = fecha_obj_i, canal_compra = canal_compra_i, nro_pedido_compuesto = nro_pedido_compuesto_i, dni_cliente = dni_cliente_i)
@@ -206,7 +212,9 @@ def alta_pedido_simple(dni_cliente_i,precio_total_i,estado_i,fecha_obj_i, canal_
     else:
         print ("Error: cliente no existe")
 
+
 def alta_producto(cod_prod_i,nombre_i,precio_i,stock_i,qr_i):
+
     if qr_i:
         new_producto = Producto.create(cod_prod = cod_prod_i, nombre = nombre_i, precio = precio_i, stock = stock_i, qr = qr_i)
         new_producto.save()
@@ -214,10 +222,12 @@ def alta_producto(cod_prod_i,nombre_i,precio_i,stock_i,qr_i):
         new_producto = Producto.create(cod_prod = cod_prod_i, nombre = nombre_i, precio = precio_i, stock = stock_i, qr= None)
         new_producto.save()
     
+
 def alta_producto_pedido(id_generado,cod_prod1,cant1):
     
-    new = ProductoPedido.create(id_pedido_simple = id_generado, cod_prod = cod_prod1, cantidad= cant1)
+    new = ProductoPedido.create(id_pedido_simple = id_generado, cod_prod = cod_prod1, cantidad = cant1)
     new.save()
+
 
 def alta_pedido_compuesto(fecha_obj_i, canal_compra_i, dni_cliente_i):
 
@@ -227,48 +237,35 @@ def alta_pedido_compuesto(fecha_obj_i, canal_compra_i, dni_cliente_i):
     else:
         print ("Error: cliente no existe")
     
+
+def actualizar_estado_pedido(id_pedido, estado_pedido):
+
+    if PedidoSimple.select().where(PedidoSimple.id == id_pedido).exists():
+        if estado_pedido: #si es true significa que no esta vacio el str
+            query = PedidoSimple.update(estado_i = estado_pedido).where(PedidoSimple.id == id_pedido)
+            query.execute()
+
+    else:
+        print ("Error: pedido no existe")
+
+
+def listado_clientes():
+
+    listClientes = []
+    for i in Cliente.__sizeof__:
+        listClientes.append(Cliente.get(i))
+        i = i + 1
     
-'''
-def baja_cliente_numero(numero):
-    cliente=Cliente.get(Cliente.numero==numero)
-    cliente.delete_instance()
+    print(listClientes)
 
-def baja_cliente_nombre(nombre):
-    cliente=Cliente.get(Cliente.nombre==nombre)
-    cliente.delete_instance()
+    #con select recorrer las tuplas de cliente ir guardandolas e imprimir
 
-def baja_cliente_direccion(direccion):
-    cliente=Cliente.get(Cliente.direccion==direccion)
-    cliente.delete_instance()
 
-def baja_cliente_telefono(telefono):
-    cliente=Cliente.get(Cliente.telefono==telefono)
-    cliente.delete_instance()
+def pago_pedido(id_generado, nro_cuenta, aprobado):
+    
+    Cobro.create(id_generado, nro_cuenta, aprobado)
 
-def baja_cliente_email(email):
-    cliente=Cliente.get(Cliente.email==email)
-    cliente.delete_instance()
-
-def modificar_cliente_numero(numero,nuevo_numero,nuevo_nombre,nueva_direccion,nuevo_telefono,nuevo_email):
-    qry=Cliente.update(numero=nuevo_numero,nombre=nuevo_nombre,direccion=nueva_direccion,telefono=nuevo_telefono,email=nuevo_email).where(Cliente.numero==numero)
-    qry.execute()
-
-def modificar_cliente_nombre(nombre,nuevo_numero,nuevo_nombre,nueva_direccion,nuevo_telefono,nuevo_email):
-    qry=Cliente.update(numero=nuevo_numero,nombre=nuevo_nombre,direccion=nueva_direccion,telefono=nuevo_telefono,email=nuevo_email).where(Cliente.nombre==nombre)
-    qry.execute()
-
-def modificar_cliente_telefono(telefono,nuevo_numero,nuevo_nombre,nueva_direccion,nuevo_telefono,nuevo_email):
-    qry=Cliente.update(numero=nuevo_numero,nombre=nuevo_nombre,direccion=nueva_direccion,telefono=nuevo_telefono,email=nuevo_email).where(Cliente.telefono==telefono)
-    qry.execute()
-
-def modificar_cliente_direccion(direccion,nuevo_numero,nuevo_nombre,nueva_direccion,nuevo_telefono,nuevo_email):
-    qry=Cliente.update(numero=nuevo_numero,nombre=nuevo_nombre,direccion=nueva_direccion,telefono=nuevo_telefono,email=nuevo_email).where(Cliente.direccion==direccion)
-    qry.execute()
-
-def modificar_cliente_email(email,nuevo_numero,nuevo_nombre,nueva_direccion,nuevo_telefono,nuevo_email):
-    qry=Cliente.update(numero=nuevo_numero,nombre=nuevo_nombre,direccion=nueva_direccion,telefono=nuevo_telefono,email=nuevo_email).where(Cliente.email==email)
-    qry.execute()
-'''
+    
 
 #def ingresar_pedido_simple(numero_pedido,numero_cuenta,numero_pago):
 
@@ -296,9 +293,10 @@ if __name__ == '__main__':
     if not Producto.table_exists():
         Producto.create_table()
 
-    menu_principal = int(input ('Bienvenido/a: \n Opciones: \n 1. Alta de cliente \n 2. Baja de cliente \n 3. Modificación de cliente \n 4. Ingresar pedido simple \n 5. Ingresar pedido compuesto \n 6. Ingresar producto en stock \n 7. Registrar estado de pedido \n 8. Listado pedidos en estado (filtro fechas=?) \n 9. Listado productos en stock \n 10. Listado clientes \n 11. Listado pedidos en rango de fechas \n 12. Listado pedidos de cliente \n 13. Salir \n Ingrese una opción: '))
+    menu_principal = int(input ('Bienvenido/a: \n Opciones: \n 1. Alta de cliente \n 2. Baja de cliente \n 3. Modificación de cliente \n 4. Ingresar pedido simple \n 5. Ingresar pedido compuesto \n 6. Ingresar producto en stock \n 7. Actualizar estado del pedido \n 8. Listado pedidos en estado (filtro fechas=?) \n 9. Listado productos en stock \n 10. Listado clientes \n 11. Listado pedidos en rango de fechas \n 12. Listado pedidos de cliente \n 13. Salir \n Ingrese una opción: '))
 
-    if (menu_principal == 1):
+    if menu_principal == 1:
+        # Alta de cliente
         try:
             dni_cliente = int(input("Ingrese un dni: "))
             nombre_cliente = input("Ingrese un nombre: ")
@@ -318,7 +316,8 @@ if __name__ == '__main__':
         except:
             print("Alguno de los datos es inválido, vuelva a intentarlo")
 
-    elif (menu_principal == 2):
+    elif menu_principal == 2:
+        # Baja de cliente
         try:
             dni_cliente = int(input("Ingrese su dni: "))
             baja_cliente(dni_cliente)
@@ -326,7 +325,8 @@ if __name__ == '__main__':
         except:
             print("Alguno de los datos es inválido, vuelva a intentarlo")
 
-    elif menu_principal==3:
+    elif menu_principal == 3:
+        # Modificación de cliente
         try:
             dni_cliente = int(input("Ingrese su dni: "))
             print ("Ingrese solo los datos que desea modificar: ")
@@ -345,7 +345,8 @@ if __name__ == '__main__':
         except:
             print("Alguno de los datos es inválido, vuelva a intentarlo")
 
-    elif menu_principal==4:
+    elif menu_principal == 4:
+        # Ingresar pedido simple
         #try:
             dni_cliente_i = int(input("Ingrese el dni del cliente que lo realizó: "))
             precio_total_i = float(input("Ingrese el costo total: "))
@@ -403,38 +404,69 @@ if __name__ == '__main__':
         #except:
         #    print("Alguno de los datos es inválido, vuelva a intentarlo")
 
-    elif menu_principal==5:
+    elif menu_principal == 5:
+        # Ingresar pedido compuesto
         try:
             dni_cliente_i = int(input('Ingrese el dni del cliente que lo realizó: '))
             fecha = input("Ingrese la fecha en formato dd/mm/yyyy: ")
             fecha_obj_i = datetime.datetime.strptime(fecha, '%d/%m/%Y')
             canal_compra_i = input("Ingrese el canal de compra (movil/web): ")
             alta_pedido_compuesto(fecha_obj_i, canal_compra_i, dni_cliente_i)
+            print("ok 5")
         except:
             print("Alguno de los datos es inválido, vuelva a intentarlo")
-    elif menu_principal==6:
-        #try:
-        cod_prod_i = int(input("Ingrese el codigo de barras: "))
-        nombre_i = input("Ingrese el nombre: ")
-        precio_i = float(input("Ingrese el precio: "))
-        stock_i = int(input("Ingrese la cantidad en stock: "))
-        qr_i = input("Ingrese el qr: ") #como ingresarian el qr?
-        alta_producto(cod_prod_i,nombre_i,precio_i,stock_i,qr_i)
-        print("ok 6")
-        #except:
 
+    elif menu_principal == 6:
+        # Ingresar producto en stock
+        try:
+            cod_prod_i = int(input("Ingrese el codigo de barras: "))
+            nombre_i = input("Ingrese el nombre: ")
+            precio_i = float(input("Ingrese el precio: "))
+            stock_i = int(input("Ingrese la cantidad en stock: "))
+            qr_i = input("Ingrese el qr: ") #como ingresarian el qr?
+            alta_producto(cod_prod_i,nombre_i,precio_i,stock_i,qr_i)
+            print("ok 6")
+        except:
+            print("Alguno de los datos es inválido, vuelva a intentarlo")
+
+    elif menu_principal == 7:
+        # Actualizar estado del pedido
+        id_pedido = input("Ingrese el id del pedido: ")
+        estado_pedido = input("Ingrese el estado en el que se encuentra el pedido: ")
+        actualizar_estado_pedido(id_pedido, estado_pedido)
+        print("ok 7")
+
+    elif menu_principal == 8:
+        # Listado pedidos en estado (filtro fechas=?) 
+        print("ok 8")
+
+    elif menu_principal == 9:
+        # Listado productos en stock
+        print("ok 9")
+
+    elif menu_principal == 10:
+        # Listado clientes 
+        listado_clientes()
+        print("ok 10")
+
+    elif menu_principal == 11:
+        # Listado pedidos en rango de fechas
+        print("ok 11")
+
+    elif menu_principal == 12:
+        # Listado pedidos de cliente
+        print("ok 12")
+
+    elif menu_principal == 13:
+        # Salir
+        print("ok 13")
 
     else:
-            pass
+        print("La opción ingresada es inválida")
             
 
 
 
-    #alta_cliente(12345678,'Agustina','Rivera 1234','094995507','agustina@mail.com')
-
-    #modificar_cliente(12345678,87654321,'Belén','Av Italia 4321','095108089','belen@mail.com')
-
-    #baja_cliente(87654321)
 
     """Crear rutinas que permitan:
 − realizar el alta, baja y modificación de clientes 
