@@ -152,7 +152,6 @@ def alta_cuenta(dni_cliente, usuario_cuenta):
     new_cuenta.save()
     return new_cuenta.nro_cuenta
 
-#modificacion cliente cuenta no
 
 def baja_cliente(dni_cliente):
 
@@ -285,8 +284,6 @@ def listado_stock():
         print("Producto", contador, ":", "Nombre:", i[0], "- Precio: ", i[1], "- Stock: ", i[2], "- Código Producto: ", i[3], "- QR: ", i[4])
         contador = contador + 1
 
-    #con select recorrer las tuplas de cliente ir guardandolas e imprimir
-
 
 def pago_pedido(id_generado, nro_cuenta, aprobado):
     
@@ -296,10 +293,8 @@ def pago_pedido(id_generado, nro_cuenta, aprobado):
 def actualizar_stock(id_pedido):
 
     pass
-#buscar en producto pedido todos los que tengan el id, guardarlos en una lista y actualizas stock en la tabla productos
+#luego que se completa el pedido simple si es simple o el compuesto, descontar el stock
     
-
-#def ingresar_pedido_simple(numero_pedido,numero_cuenta,numero_pago):
 
 
 if __name__ == '__main__':
@@ -350,9 +345,12 @@ if __name__ == '__main__':
             banco_tarjeta = input("Ingrese el banco de la tarjeta: ")
             tipo_tajeta = input("Ingrese el tipo de la tarjeta: ")
             fecha_vencimiento_t = input('Ingrese la fecha de vencimiento, en formato dd/mm/yyyy: ')
-            fecha_vencimiento_tarjeta = datetime.datetime.strptime(fecha_vencimiento_t, '%d/%m/%Y')
-            Tarjeta.create(nro_tarjeta = numero_tarjeta, tipo= tipo_tajeta, fecha_vencimiento = fecha_vencimiento_tarjeta, emisor= banco_tarjeta, nro_cuenta = nro_cuenta_generado)
-            print("Se creó la tarjeta")
+            fecha_vencimiento_tarjeta = datetime.date.strptime(fecha_vencimiento_t, '%d/%m/%Y')
+            if(fecha_vencimiento_tarjeta > date.today()):
+                Tarjeta.create(nro_tarjeta = numero_tarjeta, tipo= tipo_tajeta, fecha_vencimiento = fecha_vencimiento_tarjeta, emisor= banco_tarjeta, nro_cuenta = nro_cuenta_generado)
+                print("Se creó la tarjeta")
+            else:
+                print("Tarjeta vencida")
 
         # except:
         #    print("Alguno de los datos es inválido, vuelva a intentarlo")
