@@ -260,38 +260,30 @@ def actualizar_estado_pedido(id_pedido, estado_pedido):
 
 
 def listado_clientes():
-    consulta = 'SELECT nombre, apellido, dni, mail, cel from CLIENTE'
+    consulta = 'SELECT nombre, apellido, dni, mail, cel , departamento, localidad, calle, cod_postal from CLIENTE'
     dbms_cursor.execute(consulta)
     rows = dbms_cursor.fetchall()
     
     contador = 1
     for i in rows:
         
-        print("Cliente", contador, ":", "Nombre:", i[0], "- Apellido: ", i[1], "- DNI: ", i[2], "- Mail: ", i[3], "- Cel: ", i[4] )
+        print("Cliente", contador, ":", "Nombre:", i[0], "- Apellido: ", i[1], "- DNI: ", i[2], "- Mail: ", i[3], "- Cel: ", i[4],
+        "- Departamento: ", i[5], "- Localidad: ", i[6], "- Calle: ", i[7], "- Código Postal: ", i[8],)
         contador = contador + 1
 
-
-def listado_clientes1():
-
-    listClientes = []
-    for i in Cliente:
-        listClientes.append('El Cliente rno i es ' + Cliente.nombre)
-        listClientes.append(Cliente.get(i))
-        i = i + 1
-    
-    print(listClientes)
-
-    #con select recorrer las tuplas de cliente ir guardandolas e imprimir
 
 
 def listado_stock():
 
-    listStock = []
-    for i in Producto._sizeof_:
-        listStock.append(Producto.get(i))
-        i = i + 1
+    consulta = 'SELECT nombre, precio, stock, cod_prod, qr from PRODUCTO where stock > 0'
+    dbms_cursor.execute(consulta)
+    rows = dbms_cursor.fetchall()
     
-    print(listStock)
+    contador = 1
+    for i in rows:
+        
+        print("Producto", contador, ":", "Nombre:", i[0], "- Precio: ", i[1], "- Stock: ", i[2], "- Código Producto: ", i[3], "- QR: ", i[4])
+        contador = contador + 1
 
     #con select recorrer las tuplas de cliente ir guardandolas e imprimir
 
