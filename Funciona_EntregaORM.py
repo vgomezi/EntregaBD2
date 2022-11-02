@@ -6,9 +6,10 @@ import peewee
 
 
 psql_db = peewee.PostgresqlDatabase('dbd2', host='localhost', port=8888,  user='dbd2g2', password='dbd2#G2')
+#host='127.0.0.1'
 
 dbms_cursor = psql_db.cursor()
-#host='127.0.0.1'
+
 
 class Cliente(peewee.Model):
     dni = peewee.IntegerField(primary_key= True)
@@ -293,6 +294,23 @@ def pago_pedido(id_generado, nro_cuenta, aprobado):
 def actualizar_stock(id_pedido):
 
     pass
+
+def pedidos_cliente(dni):
+
+    dni_cliente = dni
+    consulta = 'SELECT C.nombre, C.dni, P.id, P.precio_total, P.estado, P.fecha, P.canal_compra from PEDIDO_SIMPLE AS P, CLIENTE AS C where C.dni = P.dni_cliente'
+    dbms_cursor.execute(consulta)
+    rows = dbms_cursor.fetchall()
+    
+    #contador = 1
+    for i in rows:
+        
+        print("Cliente", ":", "Nombre:", i[0], "DNI:", i[1], "- Pedido ID: ", i[2], "- Precio Total: ", i[3], 
+        "- Estado Pedido: ", i[4], "- Fecha Pedido: ", i[5], "- Cana de Compra: ", i[5])
+        #contador = contador + 1
+
+
+    
 #luego que se completa el pedido simple si es simple o el compuesto, descontar el stock
     
 
@@ -320,7 +338,7 @@ if __name__ == '__main__':
     if not Producto.table_exists():
         Producto.create_table()
 
-    menu_principal = int(input ('Bienvenido/a: \n Opciones: \n 1. Alta de cliente \n 2. Baja de cliente \n 3. Modificación de cliente \n 4. Ingresar pedido simple \n 5. Ingresar pedido compuesto \n 6. Ingresar producto en stock \n 7. Actualizar estado del pedido \n 8. Listado pedidos en estado (filtro fechas=?) \n 9. Listado productos en stock \n 10. Listado clientes \n 11. Listado pedidos en rango de fechas \n 12. Listado pedidos de cliente \n 13. Salir \n Ingrese una opción: '))
+    menu_principal = int(input ('Bienvenido/a: \n Opciones: \n 1. Alta de cliente \n 2. Baja de cliente \n 3. Modificación de cliente \n 4. Ingresar pedido simple \n 5. Ingresar pedido compuesto \n 6. Ingresar producto \n 7. Actualizar estado del pedido \n 8. Listado de productos en stock  \n 9. Listado de clientes \n 10. Listado de pedidos en un estado dado \n 11. Listado de pedidos en rango de fechas \n 12. Listado de pedidos de un cliente \n 13. Salir \n Ingrese una opción: '))
 
     if menu_principal == 1:
         # Alta de cliente
@@ -513,29 +531,37 @@ if __name__ == '__main__':
         print("ok 7")
 
     elif menu_principal == 8:
-        # Listado pedidos en estado (filtro fechas=?) 
+        # Listado de productos en stock
+        
         print("ok 8")
 
     elif menu_principal == 9:
-        # Listado productos en stock
+        # Listado de clientes
+        
         listado_stock()
         print("ok 9")
 
     elif menu_principal == 10:
-        # Listado clientes 
+        # Listado de pedidos en un estado dado 
+
         listado_clientes()
         print("ok 10")
 
     elif menu_principal == 11:
-        # Listado pedidos en rango de fechas
+        # Listado de pedidos en rango de fechas 
+
         print("ok 11")
 
     elif menu_principal == 12:
-        # Listado pedidos de cliente
+        # Listado de pedidos de un cliente 
+
+        dni = int(input("Ingrese el dni del cliente para listar sus pedidos: "))
+        pedidos_cliente(dni)
         print("ok 12")
 
     elif menu_principal == 13:
         # Salir
+
         print("ok 13")
 
     else:
@@ -543,19 +569,14 @@ if __name__ == '__main__':
             
 
 
+'''
+los pedidos en un estado dato, permitiendo filtro por rango de fechas
+los pedidos en un rango de fechas, mostrando además el cliente y estado
+los pedidos de un cliente
 
+disminuir el stock una vez que se haya entregado el pedido (pq si es confirmado y luego se devuelve 
+porque el compuesto se cancela se tendria que aumentar el stock)
 
-    """Crear rutinas que permitan:
-− realizar el alta, baja y modificación de clientes 
-pronto
-− ingresar pedidos simples y compuesto, controlando las restricciones definidas
-#al agregar un pedido tmb se agrega una instancia de producto pedido y (no se baja el stock de producto porque se baja cuando se paga)
-− ingresar articulos en el stock
-− registrar el pago o no de los pedidos (se actualiza el stock del producto segun la letra) dar opcion a registrar otros estados
-
-− Permitir listar
-− los pedidos en un estado dato, permitiendo filtro por rango de fechas
-− los productos en stock con su disponibilidad
-− los clientes mostrando sus atributos
-− los pedidos en un rango de fechas, mostrando además el cliente y estado
-− los pedidos de un cliente"""
+verificar estado depedidos compuestos, si un ps del pc es rechazado el pc es rechazado, si todos son confirmados 
+pasarian luego a ser entregados
+'''
