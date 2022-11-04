@@ -286,6 +286,7 @@ def listado_stock():
         print("Producto", contador, ":", "Nombre:", i[0], "- Precio: ", i[1], "- Stock: ", i[2], "- Código Producto: ", i[3], "- QR: ", i[4])
         contador = contador + 1
 
+
 def listado_pedidos_en_estado(estado_i):
     consulta = 'SELECT id, precio_total, fecha, canal_compra, nro_pedido_compuesto, dni_cliente from PEDIDO_SIMPLE where estado = %s'
     dbms_cursor.execute(consulta,[estado_i])
@@ -319,11 +320,13 @@ def listado_pedidos_en_estado(estado_i):
 
         if (contador_rechazados == 0 and contador_pendientes == 0):
             #esta aprobado y despachado todos
+            pass
+        
         
 
 
-
 def pago_pedido(id_generado, nro_cuenta_i, aprobado_i):
+
     
     Cobro.create(id_pedido = id_generado, nro_cuenta = nro_cuenta_i, aprobado = aprobado_i)
 
@@ -332,19 +335,46 @@ def actualizar_stock(id_pedido):
 
     pass
 
+
 def pedidos_cliente(dni): 
 
-    consulta = 'SELECT C.nombre, C.dni, P.id, P.precio_total, P.estado, P.fecha, P.canal_compra from PEDIDO_SIMPLE AS P, CLIENTE AS C where C.dni = P.dni_cliente and C.dni = %s'
-    dbms_cursor.execute(consulta, [dni])
+    consulta1 = 'SELECT C.nombre, C.dni, P.id, P.precio_total, P.estado, P.fecha, P.canal_compra, P.nro_pedido_compuesto from PEDIDO_SIMPLE AS P, CLIENTE AS C where C.dni = P.dni_cliente and C.dni = %s'
+    dbms_cursor.execute(consulta1, [dni])
     rows = dbms_cursor.fetchall()
     
-    #contador = 1
     for i in rows:
         
         print("Cliente", ":", "Nombre:", i[0], "DNI:", i[1], "- Pedido ID: ", i[2], "- Precio Total: ", i[3], 
-        "- Estado Pedido: ", i[4], "- Fecha Pedido: ", i[5], "- Canal de Compra: ", i[5])
-        #contador = contador + 1
+        "- Estado Pedido: ", i[4], "- Fecha Pedido: ", i[5], "- Canal de Compra: ", i[6], "- Número de pedido compuesto: ", i[7])
 
+    consulta2 = 'SELECT C.nombre, C.dni, P.id, P.fecha, P.canal_compra from PEDIDO_COMPUESTO AS P, CLIENTE AS C where C.dni = P.dni_cliente and C.dni = %s'
+    dbms_cursor.execute(consulta2, [dni])
+    rows = dbms_cursor.fetchall()
+    
+    for i in rows:
+        
+        print("Cliente", ":", "Nombre:", i[0], "DNI:", i[1], "- Pedido ID: ", i[2], "- Fecha Pedido: ", i[3], "- Canal de Compra: ", i[4])
+
+
+
+def listado_pedido_fechas(fecha_inicio, fecha_fin):
+    
+    consulta1 = 'SELECT id, precio_total, estado, fecha, canal_compra, nro_pedido_compuesto from PEDIDO_SIMPLE, where %s < fecha < %s'
+    dbms_cursor.execute(consulta1, [fecha_inicio], [fecha_fin])
+    rows = dbms_cursor.fetchall()
+    
+    for i in rows:
+        
+        print("Pedidos con fechas entre: ", fecha_inicio, " y ", fecha_fin, "- Pedido ID: ", i[0], "- Precio Total: ", i[1], 
+        "- Estado Pedido: ", i[2], "- Fecha Pedido: ", i[3], "- Canal de Compra: ", i[4], "- Número de pedido compuesto: ", i[5])
+
+    consulta2 = 'SELECT id, fecha, canal_compra from PEDIDO_COMPUESTO, where %s < fecha < %s'
+    dbms_cursor.execute(consulta2, [fecha_inicio], [fecha_fin])
+    rows = dbms_cursor.fetchall()
+    
+    for i in rows:
+        
+        print("Pedidos con fechas entre: ", fecha_inicio, " y ", fecha_fin, "- Pedido ID: ", i[0], "- Fecha Pedido: ", i[1], "- Canal de Compra: ", i[2])
 
     
 #luego que se completa el pedido simple si es simple o el compuesto, descontar el stock
@@ -599,6 +629,7 @@ if __name__ == '__main__':
 
     elif menu_principal == 6:
         # Ingresar producto en stock
+
         try:
             cod_prod_i = int(input("Ingrese el codigo de barras: "))
             nombre_i = input("Ingrese el nombre: ")
@@ -612,6 +643,7 @@ if __name__ == '__main__':
 
     elif menu_principal == 7:
         # Actualizar estado del pedido
+
         id_pedido = input("Ingrese el id del pedido: ")
         estado_pedido = input("Ingrese el estado en el que se encuentra el pedido: ")
         actualizar_estado_pedido(id_pedido, estado_pedido)
@@ -619,17 +651,20 @@ if __name__ == '__main__':
 
     elif menu_principal == 8:
         # Listado de productos en stock
+
         listado_stock()
         print("ok 8")
 
     elif menu_principal == 9:
         # Listado de clientes
+
         listado_clientes()
         print("ok 9")
         
 
     elif menu_principal == 10:
         # Listado de pedidos en un estado dado 
+
         estado_i = input('Ingrese el estado (pendiente/aprobado/rechazado/despachado/entregado): ')
         listado_pedidos_en_estado(estado_i)
         print('ok 10')
@@ -638,7 +673,23 @@ if __name__ == '__main__':
     elif menu_principal == 11:
         # Listado de pedidos en rango de fechas 
 
+        
+        fecha_inicio = input("Ingrese la fecha inicio en formato dd/mm/yyyy: ")
+        fecha_fin = input("Ingrese la fecha fin en formato dd/mm/yyyy: ")
+
+        fecha_inicio_i = datetime.datetime.strptime(fecha_inicio, '%d/%m/%Y')
+        fecha_fin_i = datetime.datetime.strptime(fecha_fin, '%d/%m/%Y')
+            
+        if (fecha_inicio_i >= fecha_fin_i):
+            print('Fecha inicio mayor o igual que fecha fin')
+
+        else:
+            listado_pedido_fechas(fecha_inicio = fecha_inicio_i, fecha_fin = fecha_fin_i)
+
+
         print("ok 11")
+
+        #no funciona
 
     elif menu_principal == 12:
         # Listado de pedidos de un cliente 
@@ -660,7 +711,6 @@ if __name__ == '__main__':
 '''
 los pedidos en un estado dato, permitiendo filtro por rango de fechas
 los pedidos en un rango de fechas, mostrando además el cliente y estado
-los pedidos de un cliente
 
 disminuir el stock una vez que se haya entregado el pedido (pq si es confirmado y luego se devuelve 
 porque el compuesto se cancela se tendria que aumentar el stock)
