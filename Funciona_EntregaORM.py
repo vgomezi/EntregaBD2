@@ -253,7 +253,7 @@ def actualizar_estado_pedido(id_pedido, estado_pedido):
 
     if PedidoSimple.select().where(PedidoSimple.id == id_pedido).exists():
         if estado_pedido: #si es true significa que no esta vacio el str
-            query = PedidoSimple.update(estado_i = estado_pedido).where(PedidoSimple.id == id_pedido)
+            query = PedidoSimple.update(estado = estado_pedido).where(PedidoSimple.id == id_pedido)
             query.execute()
 
     else:
@@ -288,41 +288,197 @@ def listado_stock():
 
 
 def listado_pedidos_en_estado(estado_i):
-    consulta = 'SELECT id, precio_total, fecha, canal_compra, nro_pedido_compuesto, dni_cliente from PEDIDO_SIMPLE where estado = %s'
-    dbms_cursor.execute(consulta,[estado_i])
+    consultaPEDIDOS = """SELECT id, precio_total, fecha, canal_compra, dni_cliente, nro_pedido_compuesto FROM pedido_simple WHERE estado = %s"""
+    dbms_cursor.execute(consultaPEDIDOS,[estado_i])
     rows = dbms_cursor.fetchall()
     
     print('Pedidos Simples \n')
     for i in rows:
-        if i[4] is None:        
-            print("Id:", i[0], "- Costo:", i[1], "- Fecha:", i[2], "- Canal de compra:", i[3], "- No pertenece a ningún pedido compuesto")
+        if i[5] is None:
+            print("Id:", i[0], "- Costo:", i[1], "- Fecha:", i[2], "- Canal de compra:", i[3], '-DNI del cliente:', i[4], '-No pertenece a ningún pedido compuesto')
         else:
-            print("Id:", i[0], "- Costo:", i[1], "- Fecha:", i[2], "- Canal de compra:", i[3], "- Nro de pedido compuesto al que pertenece:", i[4], "DNI del cliente:", i[5])
+            print("Id:", i[0], "- Costo:", i[1], "- Fecha:", i[2], "- Canal de compra:", i[3], '-DNI del cliente:', i[4], '-Nro de pedido compuesto: ', i[5])
 
-    consulta2 = 'SELECT id FROM PEDIDO_COMPUESTO'
+    print('Pedidos Compuestos \n')
+
+    consulta2 = """SELECT id, fecha, canal_compra, dni_cliente FROM pedido_compuesto"""
     dbms_cursor.execute(consulta2)
-    ids_compuestos = dbms_cursor.fetchall()
+    compuestos = dbms_cursor.fetchall()
 
-    contador_pendientes = 0
-    contador_rechazados =0
-    for id in ids_compuestos:
-        consulta3 = 'SELECT estado FROM PEDIDO_SIMPLE WHERE nro_pedido_compuesto = %s'
-        dbms_cursor.execute(consulta3, [id])
-        estados_simples = dbms_cursor.fetchall()
-        for estado in estados_simples:
-            print(estado)
+    for k in compuestos:
+        contador_pendientes =0
+        contador_rechazados =0
+        costo_total = 0
+        estado_compuesto = "ok"
+
+        consulta3 = """SELECT id, estado, precio_total FROM pedido_simple WHERE nro_pedido_compuesto = %s """
+        cantidad_total =dbms_cursor.execute(consulta3, [k[0]])
+        simples_del_compuesto = dbms_cursor.fetchall()
+
+        ya_imprimio = False
+
+        for i in simples_del_compuesto:
             
-            if estado == 'pendiente':
+            if (i[1] == "pendiente"):
                 contador_pendientes = contador_pendientes +1
-            elif estado == 'rechazado':
-                #elimino el rechazado 
+            elif (i[1] == "rechazado"):
                 contador_rechazados = contador_rechazados +1
 
-        if (contador_rechazados == 0 and contador_pendientes == 0):
-            #esta aprobado y despachado todos
-            pass
+            costo_total = costo_total + i[2]
+
+        if (contador_pendientes>0 and contador_rechazados ==0):
+            estado_compuesto = "pendiente"
+        elif (contador_rechazados == cantidad_total):
+            estado_compuesto = "rechazado"
+        elif (contador_rechazados>0 and contador_rechazados<cantidad_total):
+            ped = PedidoSimple.get(PedidoSimple.nro_pedido_compuesto == k[0] and PedidoSimple.estado == "rechazado")
+            ped.delete_instance()
+            #consulta4 = """DELETE FROM pedido_simple WHERE nro_pedido_compuesto = %s AND estado ='rechazado' ;"""
+            #var =dbms_cursor.execute(consulta4, [compuestos[k][0]])
+            #repito la consulta luego de que elimine los rechazados
+            #print (var)
+            contador_pendientes2 = 0
+            costo_total2 = 0
+
+            consulta5 = """SELECT id, estado, precio_total FROM pedido_simple WHERE nro_pedido_compuesto = %s """
+            dbms_cursor.execute(consulta5, [k[0]])
+            simples_del_compuesto2 = dbms_cursor.fetchall()
+
+            for m in simples_del_compuesto2:
+                if (m[1] == "pendiente"):
+                    contador_pendientes2 = contador_pendientes2 +1
+
+                costo_total2 = costo_total2 + m[2]
+
+            if (contador_pendientes2>0):
+                estado_compuesto2 = "pendiente"
+            else: #no va a haber rechazados porque los elimine, y si no hay pendientes entonces estan aprobados todos y por lo tanto despachados
+                estado_compuesto2 = "aprobado"
+                for j in simples_del_compuesto2:
+                    actualizar_estado_pedido(j[0], "despachado")
+                estado_compuesto2 = "despachado"
+            
+            if (estado_compuesto == estado_i):
+                print("Id:", k[0], "- Costo:", costo_total2, "- Fecha:", k[1], "- Canal de compra:", k[2], "- DNI del cliente:", k[3], '-Estado:', estado_compuesto2)
+
+                ya_imprimio = True
+
+        elif (contador_rechazados == 0 and contador_pendientes == 0):
+            #estan aprobados y despachados todos
+            estado_compuesto = 'aprobado'
+
+            for j in simples_del_compuesto:
+                actualizar_estado_pedido(j[0], "despachado")
+
+            estado_compuesto = 'despachado'
         
+        if (not ya_imprimio and estado_compuesto == estado_i):
+            print("Id:", k[0], "- Costo:", costo_total, "- Fecha:", k[1], "- Canal de compra:", k[2], "- DNI del cliente:", k[3], '- Estado:', estado_compuesto)
+
+def listado_pedidos_en_estado_con_fechas(estado_i,fecha_inicio_i, fecha_fin_i):
+    #muestra los simples en ese rango y los compuestos en ese rango que tengan solo simples en ese rango.
+
+    consultaPEDIDOS = """SELECT id, precio_total, fecha, canal_compra, dni_cliente, nro_pedido_compuesto FROM pedido_simple WHERE estado = %s AND fecha BETWEEN %s AND %s"""
+    dbms_cursor.execute(consultaPEDIDOS,[estado_i, fecha_inicio_i, fecha_fin_i])
+    rows = dbms_cursor.fetchall()
+    
+    print('Pedidos Simples \n')
+    for i in rows:
+        if i[5] is None:
+            print("Id:", i[0], "- Costo:", i[1], "- Fecha:", i[2], "- Canal de compra:", i[3], '-DNI del cliente:', i[4], '-No pertenece a ningún pedido compuesto')
+        else:
+            print("Id:", i[0], "- Costo:", i[1], "- Fecha:", i[2], "- Canal de compra:", i[3], '-DNI del cliente:', i[4], '-Nro de pedido compuesto: ', i[5])
+
+    print('Pedidos Compuestos \n')
+
+    consulta2 = """SELECT id, fecha, canal_compra, dni_cliente FROM pedido_compuesto WHERE fecha BETWEEN %s AND %s"""
+    dbms_cursor.execute(consulta2, [fecha_inicio_i, fecha_fin_i])
+    compuestos = dbms_cursor.fetchall()
+
+    for k in compuestos:
+        contador_pendientes =0
+        contador_rechazados =0
+        costo_total = 0
+        estado_compuesto = "ok"
+
+        consulta3 = """SELECT id, estado, precio_total, fecha FROM pedido_simple WHERE nro_pedido_compuesto = %s"""
+        cantidad_total =dbms_cursor.execute(consulta3, [k[0]])
+        simples_del_compuesto = dbms_cursor.fetchall()
+
+        ya_imprimio = False
+        simple_fuera_de_rango_fechas = False
+
+        for i in simples_del_compuesto:
+
+            if (not(i[3] <= fecha_fin_i and i[3] >= fecha_inicio_i)):
+                simple_fuera_de_rango_fechas = True
+            
+            if (i[1] == "pendiente" and not simple_fuera_de_rango_fechas):
+                contador_pendientes = contador_pendientes +1
+            elif (i[1] == "rechazado" and not simple_fuera_de_rango_fechas):
+                contador_rechazados = contador_rechazados +1
+            
+            if (not simple_fuera_de_rango_fechas):
+                costo_total = costo_total + i[2]
         
+        if (not(simple_fuera_de_rango_fechas)):
+        
+            if (contador_pendientes>0 and contador_rechazados ==0):
+                estado_compuesto = "pendiente"
+            elif (contador_rechazados == cantidad_total):
+                estado_compuesto = "rechazado"
+            elif (contador_rechazados>0 and contador_rechazados<cantidad_total):
+                ped = PedidoSimple.get(PedidoSimple.nro_pedido_compuesto == k[0] and PedidoSimple.estado == "rechazado")
+                ped.delete_instance()
+                #consulta4 = """DELETE FROM pedido_simple WHERE nro_pedido_compuesto = %s AND estado ='rechazado' ;"""
+                #var =dbms_cursor.execute(consulta4, [compuestos[k][0]])
+                #repito la consulta luego de que elimine los rechazados
+                #print (var)
+                contador_pendientes2 = 0
+                costo_total2 = 0
+
+                consulta5 = """SELECT id, estado, precio_total, fecha FROM pedido_simple WHERE nro_pedido_compuesto = %s AND fecha BETWEEN %s AND %s """
+                dbms_cursor.execute(consulta5, [k[0], fecha_inicio_i, fecha_fin_i])
+                simples_del_compuesto2 = dbms_cursor.fetchall()
+
+                simple_fuera_de_rango_fechas = False
+                for m in simples_del_compuesto2:
+                    if (not(m[3] <= fecha_fin_i and m[3] >= fecha_inicio_i)):
+                        simple_fuera_de_rango_fechas = True
+
+                    if (m[1] == "pendiente" and not simple_fuera_de_rango_fechas):
+                        contador_pendientes2 = contador_pendientes2 +1
+
+                    if (not simple_fuera_de_rango_fechas):
+                        costo_total2 = costo_total2 + m[2]
+
+                if (not(simple_fuera_de_rango_fechas)):
+                    if (contador_pendientes2>0):
+                        estado_compuesto2 = "pendiente"
+                    else: #no va a haber rechazados porque los elimine, y si no hay pendientes entonces estan aprobados todos y por lo tanto despachados
+                        estado_compuesto2 = "aprobado"
+                        for j in simples_del_compuesto2:
+                            actualizar_estado_pedido(j[0], "despachado")
+                        estado_compuesto2 = "despachado"
+                    
+                    if (estado_compuesto == estado_i):
+                        print("Id:", k[0], "- Costo:", costo_total2, "- Fecha:", k[1], "- Canal de compra:", k[2], "- DNI del cliente:", k[3], '-Estado:', estado_compuesto2)
+
+                        ya_imprimio = True
+
+            elif (contador_rechazados == 0 and contador_pendientes == 0):
+                #estan aprobados y despachados todos
+                estado_compuesto = 'aprobado'
+
+                for j in simples_del_compuesto:
+                    actualizar_estado_pedido(j[0], "despachado")
+
+                estado_compuesto = 'despachado'
+            
+            if (not ya_imprimio and estado_compuesto == estado_i):
+                print("Id:", k[0], "- Costo:", costo_total, "- Fecha:", k[1], "- Canal de compra:", k[2], "- DNI del cliente:", k[3], '- Estado:', estado_compuesto)
+
+
 
 
 def pago_pedido(id_generado, nro_cuenta_i, aprobado_i):
@@ -332,49 +488,70 @@ def pago_pedido(id_generado, nro_cuenta_i, aprobado_i):
 
 
 def actualizar_stock(id_pedido):
+     #con el id pedido voy a producto pedido, guardo la cantidad, y con cod_prod voy a producto y stock = stock - cantidad
+    instancia_prod_pedido = ProductoPedido.get(ProductoPedido.id_pedido_simple == id_pedido)
+    cant = instancia_prod_pedido.cantidad
+    codigo_producto = instancia_prod_pedido.cod_prod
 
-    pass
+    stock_anterior = Producto.get_by_id(codigo_producto).stock
+
+    query = Producto.update(stock = stock_anterior - cant).where(Producto.cod_prod == codigo_producto)
+    query.execute()
+
 
 
 def pedidos_cliente(dni): 
 
-    consulta1 = 'SELECT C.nombre, C.dni, P.id, P.precio_total, P.estado, P.fecha, P.canal_compra, P.nro_pedido_compuesto from PEDIDO_SIMPLE AS P, CLIENTE AS C where C.dni = P.dni_cliente and C.dni = %s'
-    dbms_cursor.execute(consulta1, [dni])
-    rows = dbms_cursor.fetchall()
-    
-    for i in rows:
-        
-        print("Cliente", ":", "Nombre:", i[0], "DNI:", i[1], "- Pedido ID: ", i[2], "- Precio Total: ", i[3], 
-        "- Estado Pedido: ", i[4], "- Fecha Pedido: ", i[5], "- Canal de Compra: ", i[6], "- Número de pedido compuesto: ", i[7])
+    if Cliente.select().where(Cliente.dni == dni).exists():
+        consulta1 = 'SELECT C.nombre, C.dni, P.id, P.precio_total, P.estado, P.fecha, P.canal_compra, P.nro_pedido_compuesto from PEDIDO_SIMPLE AS P, CLIENTE AS C where C.dni = P.dni_cliente and C.dni = %s'
+        dbms_cursor.execute(consulta1, [dni])
+        rows = dbms_cursor.fetchall()
 
-    consulta2 = 'SELECT C.nombre, C.dni, P.id, P.fecha, P.canal_compra from PEDIDO_COMPUESTO AS P, CLIENTE AS C where C.dni = P.dni_cliente and C.dni = %s'
-    dbms_cursor.execute(consulta2, [dni])
-    rows = dbms_cursor.fetchall()
-    
-    for i in rows:
+        nombre = Cliente.get_by_id(dni).nombre
+        doc = Cliente.get_by_id(dni).dni
+        print("\n Cliente:", nombre , "DNI:", doc , "\n")
+        print("Simples \n")
         
-        print("Cliente", ":", "Nombre:", i[0], "DNI:", i[1], "- Pedido ID: ", i[2], "- Fecha Pedido: ", i[3], "- Canal de Compra: ", i[4])
+
+        for i in rows:
+
+            print("- Pedido ID: ", i[2], "- Precio Total: ", i[3], "- Estado Pedido: ", i[4], "- Fecha Pedido: ", i[5], "- Canal de Compra: ", i[6], "- Número de pedido compuesto: ", i[7])
+
+        consulta2 = 'SELECT C.nombre, C.dni, P.id, P.fecha, P.canal_compra from PEDIDO_COMPUESTO AS P, CLIENTE AS C where C.dni = P.dni_cliente and C.dni = %s'
+        dbms_cursor.execute(consulta2, [dni])
+        rows = dbms_cursor.fetchall()
+
+        print("Compuestos \n")
+        
+        for i in rows:
+            
+            print("- Pedido ID: ", i[2], "- Fecha Pedido: ", i[3], "- Canal de Compra: ", i[4])
+    else:
+        print("Error: el cliente ingresado no existe.")
 
 
 
 def listado_pedido_fechas(fecha_inicio, fecha_fin):
     
-    consulta1 = 'SELECT id, precio_total, estado, fecha, canal_compra, nro_pedido_compuesto from PEDIDO_SIMPLE, where %s < fecha < %s'
-    dbms_cursor.execute(consulta1, [fecha_inicio], [fecha_fin])
+    consulta1 = 'SELECT id, precio_total, estado, fecha, canal_compra, nro_pedido_compuesto, dni_cliente from PEDIDO_SIMPLE where fecha BETWEEN %s AND %s'
+    dbms_cursor.execute(consulta1, [fecha_inicio, fecha_fin])
     rows = dbms_cursor.fetchall()
     
+    print("\n Pedidos con fechas entre: ", fecha_inicio.date(), " y ", fecha_fin.date())
+    print("Simples \n")
     for i in rows:
         
-        print("Pedidos con fechas entre: ", fecha_inicio, " y ", fecha_fin, "- Pedido ID: ", i[0], "- Precio Total: ", i[1], 
-        "- Estado Pedido: ", i[2], "- Fecha Pedido: ", i[3], "- Canal de Compra: ", i[4], "- Número de pedido compuesto: ", i[5])
+        print("- Pedido ID: ", i[0], "- Precio Total: ", i[1], 
+        "- Estado Pedido: ", i[2], "- Fecha Pedido: ", i[3], "- Canal de Compra: ", i[4], "- Número de pedido compuesto: ", i[5], "- DNI Cliente:" , i[6])
 
-    consulta2 = 'SELECT id, fecha, canal_compra from PEDIDO_COMPUESTO, where %s < fecha < %s'
-    dbms_cursor.execute(consulta2, [fecha_inicio], [fecha_fin])
+    consulta2 = 'SELECT id, fecha, canal_compra, dni_cliente from PEDIDO_COMPUESTO where fecha BETWEEN %s AND %s'
+    dbms_cursor.execute(consulta2, [fecha_inicio, fecha_fin])
     rows = dbms_cursor.fetchall()
     
+    print("Compuestos \n")
     for i in rows:
         
-        print("Pedidos con fechas entre: ", fecha_inicio, " y ", fecha_fin, "- Pedido ID: ", i[0], "- Fecha Pedido: ", i[1], "- Canal de Compra: ", i[2])
+        print("- Pedido ID: ", i[0], "- Fecha Pedido: ", i[1], "- Canal de Compra: ", i[2], "- DNI Cliente:" , i[3])
 
     
 #luego que se completa el pedido simple si es simple o el compuesto, descontar el stock
@@ -404,308 +581,336 @@ if __name__ == '__main__':
     if not Producto.table_exists():
         Producto.create_table()
 
-    menu_principal = int(input ('Bienvenido/a: \n Opciones: \n 1. Alta de cliente \n 2. Baja de cliente \n 3. Modificación de cliente \n 4. Ingresar pedido simple \n 5. Ingresar pedido compuesto \n 6. Ingresar producto \n 7. Actualizar estado del pedido \n 8. Listado de productos en stock  \n 9. Listado de clientes \n 10. Listado de pedidos en un estado dado \n 11. Listado de pedidos en rango de fechas \n 12. Listado de pedidos de un cliente \n 13. Salir \n Ingrese una opción: '))
+    while True:
 
-    if menu_principal == 1:
-        # Alta de cliente
-        #try:
-            dni_cliente = int(input("Ingrese un dni: "))
-            nombre_cliente = input("Ingrese un nombre: ")
-            apellido_cliente = input("Ingrese un apellido: ")
-            mail_cliente = input("Ingrese un mail: ")
-            cel_cliente = int(input("Ingrese un celular: "))
-            calle_cliente = input("Ingrese una calle: ")
-            nro_puerta_cliente = input("Ingrese un numero de puerta, si lo tiene: ")
-            apartamento_cliente = input("Si no es casa, ingrese apartamento: ")
-            cod_postal_cliente = int(input("Ingrese un codigo postal: "))
-            departamento_cliente = input("Ingrese un departamento: ")
-            localidad_cliente = input("Ingrese una localidad: ")
-            usuario_cuenta = input("Ingrese un nombre de usuario: ")
-            nro_cuenta_generado = alta_cliente(dni_cliente, nombre_cliente, apellido_cliente, mail_cliente, cel_cliente, calle_cliente, nro_puerta_cliente,
-            apartamento_cliente, cod_postal_cliente, departamento_cliente, localidad_cliente, usuario_cuenta)
-            print ('si')
-           
-            if nro_cuenta_generado != -1: #si es -1 es que no se creo el cliente pq ya existia
-                numero_tarjeta = int(input("Ingrese el numero de la tarjeta: "))
-                banco_tarjeta = input("Ingrese el banco de la tarjeta: ")
-                tipo_tajeta = input("Ingrese el tipo de la tarjeta: ")
-                fecha_vencimiento_t = input('Ingrese la fecha de vencimiento, en formato dd/mm/yyyy: ')
-                fecha_vencimiento_tarjeta = datetime.datetime.strptime(fecha_vencimiento_t, '%d/%m/%Y')
-                if(fecha_vencimiento_tarjeta.date() > date.today()):
-                    Tarjeta.create(nro_tarjeta = numero_tarjeta, tipo= tipo_tajeta, fecha_vencimiento = fecha_vencimiento_tarjeta, emisor= banco_tarjeta, nro_cuenta = nro_cuenta_generado)
-                    print("Se creó la tarjeta")
-                else:
-                    print("Tarjeta vencida")
+        menu_principal = int(input ('Bienvenido/a: \n Opciones: \n 1. Alta de cliente \n 2. Baja de cliente \n 3. Modificación de cliente \n 4. Ingresar pedido simple \n 5. Ingresar pedido compuesto \n 6. Ingresar producto \n 7. Actualizar estado del cobro de un pedido \n 8. Actualizar estado de un pedido \n 9. Listado de productos en stock  \n 10. Listado de clientes \n 11. Listado de pedidos en un estado dado (opcional: en un rango de fechas) \n 12. Listado de pedidos en rango de fechas \n 13. Listado de pedidos de un cliente \n 14. Salir \n Ingrese una opción: '))
 
-        # except:
-        #    print("Alguno de los datos es inválido, vuelva a intentarlo")
-
-    elif menu_principal == 2:
-        # Baja de cliente
-        try:
-            dni_cliente = int(input("Ingrese su dni: "))
-            baja_cliente(dni_cliente)
-            print('sisi')
-        except:
-            print("Alguno de los datos es inválido, vuelva a intentarlo")
-
-    elif menu_principal == 3:
-        # Modificación de cliente
-        try:
-            dni_cliente = int(input("Ingrese su dni: "))
-            print ("Ingrese solo los datos que desea modificar: ")
-            nombre_cliente = input("Nombre: ")
-            apellido_cliente = input("Apellido: ")
-            mail_cliente = input("Mail: ")
-            cel_cliente = input("Celular: ")
-            calle_cliente = input("Calle: ")
-            nro_puerta_cliente = input("Numero de puerta: ")
-            apartamento_cliente = input("Apartamento: ")
-            cod_postal_cliente = input("Codigo postal: ")
-            departamento_cliente = input("Departamento: ")
-            localidad_cliente = input("Localidad: ")
-            modificacion_cliente(dni_cliente, nombre_cliente, apellido_cliente, mail_cliente, cel_cliente, calle_cliente, nro_puerta_cliente, apartamento_cliente, cod_postal_cliente, departamento_cliente, localidad_cliente)
-            print("ok 3")
-        except:
-            print("Alguno de los datos es inválido, vuelva a intentarlo")
-
-    elif menu_principal == 4:
-        # Ingresar pedido simple
-        #try:
-            dni_cliente_i = int(input("Ingrese el dni del cliente que lo realizó: "))
-            precio_total_i = float(input("Ingrese el costo total: "))
-            estado_i = 'pendiente'
-            fecha_i = input("Ingrese la fecha en formato dd/mm/yyyy: ")
-            fecha_obj_i = datetime.datetime.strptime(fecha_i, '%d/%m/%Y')
-            canal_compra_i = input("Ingrese el canal de compra (movil/web): ")
-            nro_pedido_compuesto_i = input("Ingrese el n° de pedido compuesto al que pertenece, si corresponde: ")
-            
-            if nro_pedido_compuesto_i:
-                if PedidoCompuesto.select().where(PedidoCompuesto.id == nro_pedido_compuesto_i).exists():
-
-                    var = PedidoCompuesto.get_by_id(nro_pedido_compuesto_i)
-                    if  var.dni_cliente.dni == dni_cliente_i:
-                        
-                        cod_prod1 = int(input("Ingrese el codigo de barras del producto pedido: "))
-                        cant1 = int(input("Ingrese la cantidad (como máximo 20 unidades): "))
-
-                        if Producto.get_by_id(cod_prod1).stock < cant1:
-                            print("Error: la cantidad en stock no es suficiente para realizar el pedido")
-                        else:
-                            id_generado = alta_pedido_simple(dni_cliente_i,precio_total_i,estado_i,fecha_obj_i, canal_compra_i,nro_pedido_compuesto_i)
-
-                            alta_producto_pedido(id_generado,cod_prod1,cant1)
-
-                            cant_total = cant1
-
-                            while cant_total < 20:
-                                respuesta = input("Desea ingresar otro producto? s/n: ")
-                                if respuesta == 's':
-                                    cod_prod2 = int(input("Ingrese el codigo del producto pedido: "))
-                                    cant2 = int(input("Ingrese la cantidad (como máximo 20 unidades): "))
-
-                                    if Producto.get_by_id(cod_prod2).stock < cant2:
-                                        print("Error: la cantidad en stock no es suficiente para realizar el pedido")
-                                    else:
-                                        cant_total = cant_total + cant2;
-                                        if cant_total <= 20:
-                                            alta_producto_pedido(id_generado, cod_prod2,cant2)
-                                        else:
-                                            print("Error: la cantidad total de productos no puede superar las 20 unidades")
-                                if respuesta == 'n':
-                                    break
-
-                            nro_cuenta = Cuenta.get(Cuenta.dni == dni_cliente_i).nro_cuenta                            
-                            se_aprobo = input("Indique si el cobro esta aprobado (si/no): ")
-                            if se_aprobo == 'si':
-                                pago_pedido(id_generado, nro_cuenta, se_aprobo)
-                                query = PedidoSimple.update(estado = 'aprobado').where(PedidoSimple.id == id_generado)
-                                query.execute()
-                                actualizar_stock(id_generado)
-                                #como es de un compuesto no lo pongo como despachado hasta q se puedan despachar todos juntos
-                                #query = PedidoSimple.update(estado = 'despachado').where##(PedidoSimple.id == id_generado)
-                                #query.execute()
-                            else:
-                                pago_pedido(id_generado, nro_cuenta, se_aprobo)
-                                query = PedidoSimple.update(estado = 'rechazado').where(PedidoSimple.id == id_generado)
-                                query.execute()
-                                print("El pago no fue aprobado")
-
-                    
+        if menu_principal == 1:
+            # Alta de cliente
+            #try:
+                dni_cliente = int(input("Ingrese un dni: "))
+                nombre_cliente = input("Ingrese un nombre: ")
+                apellido_cliente = input("Ingrese un apellido: ")
+                mail_cliente = input("Ingrese un mail: ")
+                cel_cliente = int(input("Ingrese un celular: "))
+                calle_cliente = input("Ingrese una calle: ")
+                nro_puerta_cliente = input("Ingrese un numero de puerta, si lo tiene: ")
+                apartamento_cliente = input("Si no es casa, ingrese apartamento: ")
+                cod_postal_cliente = int(input("Ingrese un codigo postal: "))
+                departamento_cliente = input("Ingrese un departamento: ")
+                localidad_cliente = input("Ingrese una localidad: ")
+                usuario_cuenta = input("Ingrese un nombre de usuario: ")
+                nro_cuenta_generado = alta_cliente(dni_cliente, nombre_cliente, apellido_cliente, mail_cliente, cel_cliente, calle_cliente, nro_puerta_cliente,
+                apartamento_cliente, cod_postal_cliente, departamento_cliente, localidad_cliente, usuario_cuenta)
+                print ('si')
+                
+                if nro_cuenta_generado != -1: #si es -1 es que no se creo el cliente pq ya existia
+                    numero_tarjeta = int(input("Ingrese el numero de la tarjeta: "))
+                    banco_tarjeta = input("Ingrese el banco de la tarjeta: ")
+                    tipo_tajeta = input("Ingrese el tipo de la tarjeta: ")
+                    fecha_vencimiento_t = input('Ingrese la fecha de vencimiento, en formato dd/mm/yyyy: ')
+                    fecha_vencimiento_tarjeta = datetime.datetime.strptime(fecha_vencimiento_t, '%d/%m/%Y')
+                    if(fecha_vencimiento_tarjeta.date() > date.today()):
+                        Tarjeta.create(nro_tarjeta = numero_tarjeta, tipo= tipo_tajeta, fecha_vencimiento = fecha_vencimiento_tarjeta, emisor= banco_tarjeta, nro_cuenta = nro_cuenta_generado)
+                        print("Se creó la tarjeta")
                     else:
-                        print ("Error: el dni ingresado no coincide con el del pedido compuesto.")
-                else:
-                    print ("Error: el número ingresado de pedido compuesto no existe.")
-            else: #no es de un compuesto
-                cod_prod1 = int(input("Ingrese el codigo de barras del producto pedido: "))
-                cant1 = int(input("Ingrese la cantidad (como máximo 20 unidades): "))
+                        print("Tarjeta vencida")
 
-                if Producto.get_by_id(cod_prod1).stock < cant1:
-                    print("Error: la cantidad en stock no es suficiente para realizar el pedido")
-                else:
-                    id_generado = alta_pedido_simple(dni_cliente_i,precio_total_i,estado_i,fecha_obj_i, canal_compra_i,nro_pedido_compuesto_i)
+            # except:
+            #    print("Alguno de los datos es inválido, vuelva a intentarlo")
 
-                    alta_producto_pedido(id_generado,cod_prod1,cant1)
+        elif menu_principal == 2:
+            # Baja de cliente
+            try:
+                dni_cliente = int(input("Ingrese su dni: "))
+                baja_cliente(dni_cliente)
+                print('sisi')
+            except:
+                print("Alguno de los datos es inválido, vuelva a intentarlo")
 
-                    cant_total = cant1
+        elif menu_principal == 3:
+            # Modificación de cliente
+            try:
+                dni_cliente = int(input("Ingrese su dni: "))
+                print ("Ingrese solo los datos que desea modificar: ")
+                nombre_cliente = input("Nombre: ")
+                apellido_cliente = input("Apellido: ")
+                mail_cliente = input("Mail: ")
+                cel_cliente = input("Celular: ")
+                calle_cliente = input("Calle: ")
+                nro_puerta_cliente = input("Numero de puerta: ")
+                apartamento_cliente = input("Apartamento: ")
+                cod_postal_cliente = input("Codigo postal: ")
+                departamento_cliente = input("Departamento: ")
+                localidad_cliente = input("Localidad: ")
+                modificacion_cliente(dni_cliente, nombre_cliente, apellido_cliente, mail_cliente, cel_cliente, calle_cliente, nro_puerta_cliente, apartamento_cliente, cod_postal_cliente, departamento_cliente, localidad_cliente)
+                print("ok 3")
+            except:
+                print("Alguno de los datos es inválido, vuelva a intentarlo")
 
-                    while cant_total < 20:
-                        respuesta = input("Desea ingresar otro producto? s/n: ")
-                        if respuesta == 's':
-                            cod_prod2 = int(input("Ingrese el codigo del producto pedido: "))
-                            cant2 = int(input("Ingrese la cantidad (como máximo 20 unidades): "))
+        elif menu_principal == 4:
+            # Ingresar pedido simple
+            #try:
+                dni_cliente_i = int(input("Ingrese el dni del cliente que lo realizó: "))
+                precio_total_i = float(input("Ingrese el costo total: "))
+                estado_i = 'pendiente'
+                fecha_i = input("Ingrese la fecha en formato dd/mm/yyyy: ")
+                fecha_obj_i = datetime.datetime.strptime(fecha_i, '%d/%m/%Y')
+                canal_compra_i = input("Ingrese el canal de compra (movil/web): ")
+                nro_pedido_compuesto_i = input("Ingrese el n° de pedido compuesto al que pertenece, si corresponde: ")
+                
+                if nro_pedido_compuesto_i:
+                    if PedidoCompuesto.select().where(PedidoCompuesto.id == nro_pedido_compuesto_i).exists():
 
-                            if Producto.get_by_id(cod_prod2).stock < cant2:
+                        var = PedidoCompuesto.get_by_id(nro_pedido_compuesto_i)
+                        if  var.dni_cliente.dni == dni_cliente_i:
+                            
+                            cod_prod1 = int(input("Ingrese el codigo de barras del producto pedido: "))
+                            cant1 = int(input("Ingrese la cantidad (como máximo 20 unidades): "))
+
+                            if Producto.get_by_id(cod_prod1).stock < cant1:
                                 print("Error: la cantidad en stock no es suficiente para realizar el pedido")
                             else:
-                                cant_total = cant_total + cant2;
-                                if cant_total <= 20:
-                                    alta_producto_pedido(id_generado, cod_prod2,cant2)
-                                else:
-                                    print("Error: la cantidad total de productos no puede superar las 20 unidades")
-                        if respuesta == 'n':
-                            break
+                                id_generado = alta_pedido_simple(dni_cliente_i,precio_total_i,estado_i,fecha_obj_i, canal_compra_i,nro_pedido_compuesto_i)
 
-                    #result = dbms_cursor.execute('SELECT nro_cuenta FROM cuenta WHERE dni = %s;',#[dni_cliente_i])
-                            
-                    #print(result)
-                    nro_cuenta = Cuenta.get(Cuenta.dni == dni_cliente_i).nro_cuenta
-                    se_aprobo = input("Indique si el cobro esta aprobado (si/no): ")
-                    if se_aprobo == 'si':
-                        pago_pedido(id_generado, nro_cuenta, se_aprobo)
-                        query = PedidoSimple.update(estado = 'aprobado').where(PedidoSimple.id == id_generado)
-                        query.execute()
-                        actualizar_stock(id_generado)
-                        #como no es de un compuesto y ya esta aprobado se libera para despachar
-                        query = PedidoSimple.update(estado = 'despachado').where(PedidoSimple.id == id_generado)
-                        query.execute()
+                                alta_producto_pedido(id_generado,cod_prod1,cant1)
+
+                                cant_total = cant1
+
+                                while cant_total < 20:
+                                    respuesta = input("Desea ingresar otro producto? s/n: ")
+                                    if respuesta == 's':
+                                        cod_prod2 = int(input("Ingrese el codigo del producto pedido: "))
+                                        cant2 = int(input("Ingrese la cantidad (como máximo 20 unidades): "))
+
+                                        if Producto.get_by_id(cod_prod2).stock < cant2:
+                                            print("Error: la cantidad en stock no es suficiente para realizar el pedido")
+                                        else:
+                                            cant_total = cant_total + cant2;
+                                            if cant_total <= 20:
+                                                alta_producto_pedido(id_generado, cod_prod2,cant2)
+                                            else:
+                                                print("Error: la cantidad total de productos no puede superar las 20 unidades")
+                                    if respuesta == 'n':
+                                        break
+                                    
+                        else:
+                            print ("Error: el dni ingresado no coincide con el del pedido compuesto.")
                     else:
-                        pago_pedido(id_generado, nro_cuenta, se_aprobo)
-                        query = PedidoSimple.update(estado = 'rechazado').where(PedidoSimple.id == id_generado)
-                        query.execute()
-                        print("El pago no fue aprobado")
-             
-        #except:
-        #    print("Alguno de los datos es inválido, vuelva a intentarlo")
+                        print ("Error: el número ingresado de pedido compuesto no existe.")
+                else: #no es de un compuesto
+                    cod_prod1 = int(input("Ingrese el codigo de barras del producto pedido: "))
+                    cant1 = int(input("Ingrese la cantidad (como máximo 20 unidades): "))
 
-    elif menu_principal == 5:
-        # Ingresar pedido compuesto
-        #try:
-            dni_cliente_i = int(input('Ingrese el dni del cliente que lo realizó: '))
-            fecha = input("Ingrese la fecha en formato dd/mm/yyyy: ")
-            fecha_obj_i = datetime.datetime.strptime(fecha, '%d/%m/%Y')
-            canal_compra_i = input("Ingrese el canal de compra (movil/web): ")
-            id_generado = alta_pedido_compuesto(fecha_obj_i, canal_compra_i, dni_cliente_i)
+                    if Producto.get_by_id(cod_prod1).stock < cant1:
+                        print("Error: la cantidad en stock no es suficiente para realizar el pedido")
+                    else:
+                        id_generado = alta_pedido_simple(dni_cliente_i,precio_total_i,estado_i,fecha_obj_i, canal_compra_i,nro_pedido_compuesto_i)
 
-            id1 = int(input("Ingrese el id del primer pedido simple: "))
-            if PedidoSimple.get_by_id(id1) != None :
-                query =PedidoSimple.update(nro_pedido_compuesto = id_generado).where(PedidoSimple.id==id1)
-                query.execute()
-            else:
-                print('Error: el id ingresado no existe.')
-            
-            id2= int(input("Ingrese el id del segundo pedido simple: "))
-            if PedidoSimple.get_by_id(id2) != None:
-                query =PedidoSimple.update(nro_pedido_compuesto = id_generado).where(PedidoSimple.id==id2)
-                query.execute()
-            else:
-                print('Error: el id ingresado no existe.')
+                        alta_producto_pedido(id_generado,cod_prod1,cant1)
 
-            respuesta = input("Desea agregar otro pedido simple? s/n: ")
-            while respuesta == 's':
-                id_nuevo = int(input("Ingrese el id del pedido simple: "))
-                if PedidoSimple.get_by_id(id_nuevo) != None:
-                    query = PedidoSimple.update(nro_pedido_compuesto = id_generado).where(PedidoSimple.id==id_nuevo)
+                        cant_total = cant1
+
+                        while cant_total < 20:
+                            respuesta = input("Desea ingresar otro producto? s/n: ")
+                            if respuesta == 's':
+                                cod_prod2 = int(input("Ingrese el codigo del producto pedido: "))
+                                cant2 = int(input("Ingrese la cantidad (como máximo 20 unidades): "))
+
+                                if Producto.get_by_id(cod_prod2).stock < cant2:
+                                    print("Error: la cantidad en stock no es suficiente para realizar el pedido")
+                                else:
+                                    cant_total = cant_total + cant2;
+                                    if cant_total <= 20:
+                                        alta_producto_pedido(id_generado, cod_prod2,cant2)
+                                    else:
+                                        print("Error: la cantidad total de productos no puede superar las 20 unidades")
+                            if respuesta == 'n':
+                                break
+
+                    
+            #except:
+            #    print("Alguno de los datos es inválido, vuelva a intentarlo")
+
+        elif menu_principal == 5:
+            # Ingresar pedido compuesto
+            try:
+                dni_cliente_i = int(input('Ingrese el dni del cliente que lo realizó: '))
+                fecha = input("Ingrese la fecha en formato dd/mm/yyyy: ")
+                fecha_obj_i = datetime.datetime.strptime(fecha, '%d/%m/%Y')
+                canal_compra_i = input("Ingrese el canal de compra (movil/web): ")
+                id_generado = alta_pedido_compuesto(fecha_obj_i, canal_compra_i, dni_cliente_i)
+
+                id1 = int(input("Ingrese el id del primer pedido simple: "))
+                if PedidoSimple.get_by_id(id1) != None :
+                    query =PedidoSimple.update(nro_pedido_compuesto = id_generado).where(PedidoSimple.id==id1)
+                    query.execute()
+                else:
+                    print('Error: el id ingresado no existe.')
+                
+                id2= int(input("Ingrese el id del segundo pedido simple: "))
+                if PedidoSimple.get_by_id(id2) != None:
+                    query =PedidoSimple.update(nro_pedido_compuesto = id_generado).where(PedidoSimple.id==id2)
                     query.execute()
                 else:
                     print('Error: el id ingresado no existe.')
 
                 respuesta = input("Desea agregar otro pedido simple? s/n: ")
+                while respuesta == 's':
+                    id_nuevo = int(input("Ingrese el id del pedido simple: "))
+                    if PedidoSimple.get_by_id(id_nuevo) != None:
+                        query = PedidoSimple.update(nro_pedido_compuesto = id_generado).where(PedidoSimple.id==id_nuevo)
+                        query.execute()
+                    else:
+                        print('Error: el id ingresado no existe.')
+
+                    respuesta = input("Desea agregar otro pedido simple? s/n: ")
+                
+
+                print("ok 5")
+            except:
+                print("Alguno de los datos es inválido, vuelva a intentarlo")
+
+        elif menu_principal == 6:
+            # Ingresar producto en stock
+
+            try:
+                cod_prod_i = int(input("Ingrese el codigo de barras: "))
+                nombre_i = input("Ingrese el nombre: ")
+                precio_i = float(input("Ingrese el precio: "))
+                stock_i = int(input("Ingrese la cantidad en stock: "))
+                qr_i = input("Ingrese el qr: ") #como ingresarian el qr?
+                alta_producto(cod_prod_i,nombre_i,precio_i,stock_i,qr_i)
+                print("ok 6")
+            except:
+                print("Alguno de los datos es inválido, vuelva a intentarlo")
+
+        elif menu_principal == 7:
+            # Registrar estado del cobro
+            id_pedido_i = input ("Ingrese el id del pedido: ")
+            if PedidoSimple.select().where(PedidoSimple.id == id_pedido_i).exists():
+                estado_actual = PedidoSimple.select(PedidoSimple.estado).where(PedidoSimple.id == id_pedido_i)
+                dni_cliente_i = PedidoSimple.select(PedidoSimple.dni_cliente).where(PedidoSimple.id == id_pedido_i)
+                nro_cuenta = Cuenta.get(Cuenta.dni == dni_cliente_i).nro_cuenta
+                se_aprobo = input("Indique si el cobro esta aprobado (si/no): ")
+                if se_aprobo == 'si':
+                    if (estado_actual != "aprobado"):
+                        pago_pedido(id_pedido_i, nro_cuenta, se_aprobo)
+                        query = PedidoSimple.update(estado = 'aprobado').where(PedidoSimple.id == id_pedido_i)
+                        query.execute()
+                        actualizar_stock(id_pedido_i)
+                    else:
+                        print("El cobro ya se encontraba aprobado.")
+                   
+                    #no vamos a despacharlos enseguida porque si despues los agrego a un compuesto van a haber algunos despachados y otros no, dejamos que eso lo haga el empleado desde actualizar estado de un pedido
+
+                    #if PedidoSimple.select().where(PedidoSimple.id == id_pedido_i).nro_pedido_compuesto is None:
+                    #    query = PedidoSimple.update(estado = 'despachado').where(PedidoSimple.id == id_generado)
+                    #    query.execute()
+                else:
+                    if (estado_actual != "rechazado"):
+                        pago_pedido(id_pedido_i, nro_cuenta, se_aprobo)
+                        query = PedidoSimple.update(estado = 'rechazado').where(PedidoSimple.id == id_pedido_i)
+                        query.execute()
+                        print("El pago no fue aprobado")
+                    else: 
+                        print( "El cobro ya se encontraba rechazado.")
+            else:
+                print ("Error: el pedido ingresado no existe")
             
 
-            print("ok 5")
-        #except:
-        #    print("Alguno de los datos es inválido, vuelva a intentarlo")
+        elif menu_principal == 8:
+            # Actualizar estado del pedido
+            try:
+                id_pedido = input("Ingrese el id del pedido: ")
+                opcion = int(input("Elija el estado en el que se encuentra el pedido: \n 1- pendiente \n 2- aprobado \n 3- rechazado \n 4- despachado \n 5- entregado \n"))
+                if (opcion == 1):
+                    actualizar_estado_pedido(id_pedido, "pendiente")
+                elif (opcion ==2):
+                    actualizar_estado_pedido(id_pedido, "aprobado")
+                elif (opcion ==3):
+                    actualizar_estado_pedido(id_pedido, "rechazado")
+                elif (opcion ==4):
+                    actualizar_estado_pedido(id_pedido, "despachado")
+                elif (opcion ==5):
+                    actualizar_estado_pedido(id_pedido, "entregado")
+                else:
+                    print("La opción ingresada no es válida.")
+                
+            except:
+                print("Error: alguno de los datos ingresados es inválido, intentelo de nuevo.")
 
-    elif menu_principal == 6:
-        # Ingresar producto en stock
+        elif menu_principal == 9:
+            # Listado de productos en stock
 
-        try:
-            cod_prod_i = int(input("Ingrese el codigo de barras: "))
-            nombre_i = input("Ingrese el nombre: ")
-            precio_i = float(input("Ingrese el precio: "))
-            stock_i = int(input("Ingrese la cantidad en stock: "))
-            qr_i = input("Ingrese el qr: ") #como ingresarian el qr?
-            alta_producto(cod_prod_i,nombre_i,precio_i,stock_i,qr_i)
-            print("ok 6")
-        except:
-            print("Alguno de los datos es inválido, vuelva a intentarlo")
+            listado_stock()
+            print("ok 8")
 
-    elif menu_principal == 7:
-        # Actualizar estado del pedido
+        elif menu_principal == 10:
+            # Listado de clientes
 
-        id_pedido = input("Ingrese el id del pedido: ")
-        estado_pedido = input("Ingrese el estado en el que se encuentra el pedido: ")
-        actualizar_estado_pedido(id_pedido, estado_pedido)
-        print("ok 7")
-
-    elif menu_principal == 8:
-        # Listado de productos en stock
-
-        listado_stock()
-        print("ok 8")
-
-    elif menu_principal == 9:
-        # Listado de clientes
-
-        listado_clientes()
-        print("ok 9")
-        
-
-    elif menu_principal == 10:
-        # Listado de pedidos en un estado dado 
-
-        estado_i = input('Ingrese el estado (pendiente/aprobado/rechazado/despachado/entregado): ')
-        listado_pedidos_en_estado(estado_i)
-        print('ok 10')
-        
-
-    elif menu_principal == 11:
-        # Listado de pedidos en rango de fechas 
-
-        
-        fecha_inicio = input("Ingrese la fecha inicio en formato dd/mm/yyyy: ")
-        fecha_fin = input("Ingrese la fecha fin en formato dd/mm/yyyy: ")
-
-        fecha_inicio_i = datetime.datetime.strptime(fecha_inicio, '%d/%m/%Y')
-        fecha_fin_i = datetime.datetime.strptime(fecha_fin, '%d/%m/%Y')
+            listado_clientes()
+            print("ok 9")
             
-        if (fecha_inicio_i >= fecha_fin_i):
-            print('Fecha inicio mayor o igual que fecha fin')
+
+        elif menu_principal == 11:
+            # Listado de pedidos en un estado dado 
+            r = input("¿Desea filtrar por rango de fechas? s/n: ")
+            if r=="s":
+                fecha_inicio = input("Ingrese la fecha inicio en formato dd/mm/yyyy: ")
+                fecha_fin = input("Ingrese la fecha fin en formato dd/mm/yyyy: ")
+
+                fecha_inicio_i = datetime.datetime.strptime(fecha_inicio, '%d/%m/%Y')
+                fecha_fin_i = datetime.datetime.strptime(fecha_fin, '%d/%m/%Y')
+                    
+                if (fecha_inicio_i >= fecha_fin_i):
+                    print('Error: Fecha inicio mayor o igual que fecha fin')
+
+                else:
+                    estado_i = input('Ingrese el estado (pendiente/aprobado/rechazado/despachado/entregado): ')
+                    
+                    listado_pedidos_en_estado_con_fechas(estado_i,fecha_inicio_i.date(), fecha_fin_i.date())
+            elif r=="n":
+                estado_i = input('Ingrese el estado (pendiente/aprobado/rechazado/despachado/entregado): ')
+                listado_pedidos_en_estado(estado_i)
+            print('ok 10')
+            
+
+        elif menu_principal == 12:
+            # Listado de pedidos en rango de fechas (se muestra cliente, no estado porque es lo mismo que se puede ver en la opcion 11)
+
+            
+            fecha_inicio = input("Ingrese la fecha inicio en formato dd/mm/yyyy: ")
+            fecha_fin = input("Ingrese la fecha fin en formato dd/mm/yyyy: ")
+
+            fecha_inicio_i = datetime.datetime.strptime(fecha_inicio, '%d/%m/%Y')
+            fecha_fin_i = datetime.datetime.strptime(fecha_fin, '%d/%m/%Y')
+                
+            if (fecha_inicio_i >= fecha_fin_i):
+                print('Error: Fecha inicio mayor o igual que fecha fin')
+
+            else:
+                listado_pedido_fechas(fecha_inicio = fecha_inicio_i, fecha_fin = fecha_fin_i)
+
+
+            print("ok 11")
+
+            #no funciona
+
+        elif menu_principal == 13:
+            # Listado de pedidos de un cliente 
+
+            dni = int(input("Ingrese el dni del cliente para listar sus pedidos: "))
+            pedidos_cliente(dni)
+            print("ok 12")
+
+        elif menu_principal == 14:
+            # Salir
+            exit()
 
         else:
-            listado_pedido_fechas(fecha_inicio = fecha_inicio_i, fecha_fin = fecha_fin_i)
-
-
-        print("ok 11")
-
-        #no funciona
-
-    elif menu_principal == 12:
-        # Listado de pedidos de un cliente 
-
-        dni = int(input("Ingrese el dni del cliente para listar sus pedidos: "))
-        pedidos_cliente(dni)
-        print("ok 12")
-
-    elif menu_principal == 13:
-        # Salir
-
-        print("ok 13")
-
-    else:
-        print("La opción ingresada es inválida")
-            
+            print("La opción ingresada es inválida")
+                
 
 
 '''
