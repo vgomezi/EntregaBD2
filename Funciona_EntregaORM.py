@@ -347,14 +347,19 @@ def pedidos_cliente(dni):
         print("Cliente", ":", "Nombre:", i[0], "DNI:", i[1], "- Pedido ID: ", i[2], "- Precio Total: ", i[3], 
         "- Estado Pedido: ", i[4], "- Fecha Pedido: ", i[5], "- Canal de Compra: ", i[6], "- Número de pedido compuesto: ", i[7])
 
+
     consulta2 = 'SELECT C.nombre, C.dni, P.id, P.fecha, P.canal_compra from PEDIDO_COMPUESTO AS P, CLIENTE AS C where C.dni = P.dni_cliente and C.dni = %s'
     dbms_cursor.execute(consulta2, [dni])
     rows = dbms_cursor.fetchall()
-    
+
     for i in rows:
         
         print("Cliente", ":", "Nombre:", i[0], "DNI:", i[1], "- Pedido ID: ", i[2], "- Fecha Pedido: ", i[3], "- Canal de Compra: ", i[4])
 
+    if rows == None:
+        print('El cliente no tiene pedidos')
+
+    #no funciona
 
 
 def listado_pedido_fechas(fecha_inicio, fecha_fin):
