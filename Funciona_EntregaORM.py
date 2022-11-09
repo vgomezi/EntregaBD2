@@ -330,9 +330,21 @@ def listado_pedidos_en_estado(estado_i):
 
         if (contador_pendientes>0 and contador_rechazados ==0):
             estado_compuesto = "pendiente"
-        elif (contador_rechazados == cantidad_total):
+        elif (contador_rechazados >0):
             estado_compuesto = "rechazado"
-        elif (contador_rechazados>0 and contador_rechazados<cantidad_total):
+        elif (contador_rechazados == 0 and contador_pendientes == 0):
+            #estan aprobados y despachados todos
+            estado_compuesto = 'aprobado'
+
+            for j in simples_del_compuesto:
+                actualizar_estado_pedido(j[0], "despachado")
+
+            estado_compuesto = 'despachado'
+        
+        if (estado_compuesto == estado_i):
+            print("Id:", k[0], "- Costo:", costo_total, "- Fecha:", k[1], "- Canal de compra:", k[2], "- DNI del cliente:", k[3], '- Estado:', estado_compuesto)
+        ''''
+elif (contador_rechazados>0 and contador_rechazados<cantidad_total):
             consulta = "SELECT id, from pedido_simple WHERE estado = 'rechazado'" 
             dbms_cursor.execute(consulta)
             rows = dbms_cursor.fetchall()
@@ -373,18 +385,9 @@ def listado_pedidos_en_estado(estado_i):
                 print("Id:", k[0], "- Costo:", costo_total2, "- Fecha:", k[1], "- Canal de compra:", k[2], "- DNI del cliente:", k[3], '-Estado:', estado_compuesto2)
 
                 ya_imprimio = True
+                '''
 
-        elif (contador_rechazados == 0 and contador_pendientes == 0):
-            #estan aprobados y despachados todos
-            estado_compuesto = 'aprobado'
-
-            for j in simples_del_compuesto:
-                actualizar_estado_pedido(j[0], "despachado")
-
-            estado_compuesto = 'despachado'
         
-        if (not ya_imprimio and estado_compuesto == estado_i):
-            print("Id:", k[0], "- Costo:", costo_total, "- Fecha:", k[1], "- Canal de compra:", k[2], "- DNI del cliente:", k[3], '- Estado:', estado_compuesto)
 
 
 def listado_pedidos_en_estado_con_fechas(estado_i,fecha_inicio_i, fecha_fin_i):
@@ -510,27 +513,39 @@ def pago_pedido(id_generado, nro_cuenta_i, aprobado_i):
 def disminuir_stock(id_pedido):
      #con el id pedido voy a producto pedido, guardo la cantidad, y con cod_prod voy a producto y stock = stock - cantidad
 
-    instancia_prod_pedido = ProductoPedido.get(ProductoPedido.id_pedido_simple == id_pedido)
-    cant = instancia_prod_pedido.cantidad
-    codigo_producto = instancia_prod_pedido.cod_prod
+    consulta_nueva = 'SELECT id_pedido_simple, cantidad, cod_prod FROM producto_pedido WHERE id_pedido_simple = %s '
+    dbms_cursor.execute(consulta_nueva, [id_pedido])
+    rows = dbms_cursor.fetchall()
 
-    stock_anterior = Producto.get_by_id(codigo_producto).stock
+    for i in rows:
+        cant = i[1]
+        codigo_producto = i[2]
 
-    query = Producto.update(stock = stock_anterior - cant).where(Producto.cod_prod == codigo_producto)
-    query.execute()
+        stock_anterior = Producto.get_by_id(codigo_producto).stock
+
+        query = Producto.update(stock = stock_anterior - cant).where(Producto.cod_prod == codigo_producto)
+        query.execute()
 
 
 def aumentar_stock(id_pedido):
      #con el id pedido voy a producto pedido, guardo la cantidad, y con cod_prod voy a producto y stock = stock - cantidad
+    consulta_nueva = 'SELECT id_pedido_simple, cantidad, cod_prod FROM producto_pedido WHERE id_pedido_simple = %s '
+    dbms_cursor.execute(consulta_nueva, [id_pedido])
+    rows = dbms_cursor.fetchall()
 
-    instancia_prod_pedido = ProductoPedido.get(ProductoPedido.id_pedido_simple == id_pedido)
-    cant = instancia_prod_pedido.cantidad
-    codigo_producto = instancia_prod_pedido.cod_prod
+    for i in rows:
+        cant = i[1]
+        codigo_producto = i[2]
+        stock_anterior = Producto.get_by_id(codigo_producto).stock
 
-    stock_anterior = Producto.get_by_id(codigo_producto).stock
+        query = Producto.update(stock = stock_anterior + cant).where(Producto.cod_prod == codigo_producto)
+        query.execute()
 
-    query = Producto.update(stock = stock_anterior + cant).where(Producto.cod_prod == codigo_producto)
-    query.execute()
+    #instancia_prod_pedido = ProductoPedido.get(ProductoPedido.id_pedido_simple == id_pedido)
+    #cant = instancia_prod_pedido.cantidad
+    #codigo_producto = instancia_prod_pedido.cod_prod
+
+    
 
 
 
@@ -752,13 +767,22 @@ def menu3():
 def menu4():
     # Ingresar pedido simple
     
-    try:
+    #try:
         dni_cliente_i = int(input("Ingrese el dni del cliente que lo realizó: "))
         precio_total_i = float(input("Ingrese el costo total: "))
         estado_i = 'pendiente'
         fecha_i = input("Ingrese la fecha en formato dd/mm/yyyy: ")
         fecha_obj_i = datetime.datetime.strptime(fecha_i, '%d/%m/%Y')
-        canal_compra_i = input("Ingrese el canal de compra (movil/web): ")
+        
+        canal_compra_i = input("Ingrese w si el canal de compra es web o m si es móvil: ")
+
+        if canal_compra_i == 'w':
+            canal_compra_real = 'web'
+        elif canal_compra_i == 'm':
+            canal_compra_real = 'móvil'
+        else:
+            int ('mal')
+
         nro_pedido_compuesto_i = input("Ingrese el n° de pedido compuesto al que pertenece, si corresponde: ")
         
         if nro_pedido_compuesto_i:
@@ -773,15 +797,15 @@ def menu4():
                     if Producto.get_by_id(cod_prod1).stock < cant1:
                         print("Error: la cantidad en stock no es suficiente para realizar el pedido")
                     else:
-                        id_generado = alta_pedido_simple(dni_cliente_i,precio_total_i,estado_i,fecha_obj_i, canal_compra_i,nro_pedido_compuesto_i)
+                        id_generado = alta_pedido_simple(dni_cliente_i,precio_total_i,estado_i,fecha_obj_i, canal_compra_real,nro_pedido_compuesto_i)
 
                         alta_producto_pedido(id_generado,cod_prod1,cant1)
 
                         cant_total = cant1
 
                         while cant_total < 20:
-                            respuesta = input("Desea ingresar otro producto? s/n: ")
-                            if respuesta == 's':
+                            respuesta = input("Desea ingresar otro producto? si/no: ")
+                            if respuesta == 'si':
                                 cod_prod2 = int(input("Ingrese el codigo del producto pedido: "))
                                 cant2 = int(input("Ingrese la cantidad (como máximo 20 unidades): "))
 
@@ -793,7 +817,7 @@ def menu4():
                                         alta_producto_pedido(id_generado, cod_prod2,cant2)
                                     else:
                                         print("Error: la cantidad total de productos no puede superar las 20 unidades")
-                            if respuesta == 'n':
+                            if respuesta == 'no':
                                 break
                             
                 else:
@@ -814,26 +838,26 @@ def menu4():
                 cant_total = cant1
 
                 while cant_total < 20:
-                    respuesta = input("Desea ingresar otro producto? s/n: ")
-                    if respuesta == 's':
+                    respuesta = input("Desea ingresar otro producto? si/no: ")
+                    if respuesta == 'si':
                         cod_prod2 = int(input("Ingrese el codigo del producto pedido: "))
                         cant2 = int(input("Ingrese la cantidad (como máximo 20 unidades): "))
 
                         if Producto.get_by_id(cod_prod2).stock < cant2:
                             print("Error: la cantidad en stock no es suficiente para realizar el pedido")
                         else:
-                            cant_total = cant_total + cant2;
+                            cant_total = cant_total + cant2
                             if cant_total <= 20:
                                 alta_producto_pedido(id_generado, cod_prod2,cant2)
                             else:
                                 print("Error: la cantidad total de productos no puede superar las 20 unidades")
-                    if respuesta == 'n':
+                    if respuesta == 'no':
                         break
 
         menu_principal()
             
-    except:
-        print("Alguno de los datos es inválido, vuelva a intentarlo")
+    #except:
+    #   print("Alguno de los datos es inválido, vuelva a intentarlo")
 
 
 def menu5():
@@ -852,7 +876,7 @@ def menu5():
         else:
             int ('mal')
 
-        id_generado = alta_pedido_compuesto(fecha_obj_i, canal_compra_i, dni_cliente_i)
+        id_generado = alta_pedido_compuesto(fecha_obj_i, canal_compra_real, dni_cliente_i)
 
         id1 = int(input("Ingrese el id del primer pedido simple: "))
         if PedidoSimple.get_by_id(id1) != None :
@@ -868,8 +892,8 @@ def menu5():
         else:
             print('Error: el id ingresado no existe.')
 
-        respuesta = input("Desea agregar otro pedido simple? s/n: ")
-        while respuesta == 's':
+        respuesta = input("Desea agregar otro pedido simple? si/no: ")
+        while respuesta == 'si':
             id_nuevo = int(input("Ingrese el id del pedido simple: "))
             if PedidoSimple.get_by_id(id_nuevo) != None:
                 query = PedidoSimple.update(nro_pedido_compuesto = id_generado).where(PedidoSimple.id==id_nuevo)
@@ -877,7 +901,7 @@ def menu5():
             else:
                 print('Error: el id ingresado no existe.')
 
-            respuesta = input("Desea agregar otro pedido simple? s/n: ")
+            respuesta = input("Desea agregar otro pedido simple? si/no: ")
         
         menu_principal()
 
@@ -926,6 +950,7 @@ def menu7():
                     pago_pedido(id_pedido_i, nro_cuenta, se_aprobo)
                     query = PedidoSimple.update(estado = 'rechazado').where(PedidoSimple.id == id_pedido_i)
                     query.execute()
+                    aumentar_stock(id_pedido_i)
                     print("El pago no fue aprobado")
                 else: 
                     print( "El cobro ya se encontraba rechazado.")
@@ -977,8 +1002,8 @@ def menu10():
 def menu11():
     # Listado de pedidos en un estado dado 
 
-    r = input("¿Desea filtrar por rango de fechas? s/n: ")
-    if r=="s":
+    r = input("¿Desea filtrar por rango de fechas? si/no: ")
+    if r=="si":
         fecha_inicio = input("Ingrese la fecha inicio en formato dd/mm/yyyy: ")
         fecha_fin = input("Ingrese la fecha fin en formato dd/mm/yyyy: ")
 
@@ -992,7 +1017,7 @@ def menu11():
             estado_i = input('Ingrese el estado (pendiente/aprobado/rechazado/despachado/entregado): ')
             
             listado_pedidos_en_estado_con_fechas(estado_i,fecha_inicio_i.date(), fecha_fin_i.date())
-    elif r=="n":
+    elif r=="no":
         estado_i = input('Ingrese el estado (pendiente/aprobado/rechazado/despachado/entregado): ')
         listado_pedidos_en_estado(estado_i)
 
