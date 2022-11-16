@@ -1055,15 +1055,7 @@ def menu14():
     # Salir
 
     exit()
-  
-
-
-'''
-disminuir el stock una vez que se haya entregado el pedido (pq si es confirmado y luego se devuelve 
-porque el compuesto se cancela se tendria que aumentar el stock)
-'''
-
-    
+     
     
 '''''
 
