@@ -1065,7 +1065,7 @@ porque el compuesto se cancela se tendria que aumentar el stock)
 
     
     
-
+'''''
 
 if __name__ == '__main__':
 
@@ -1091,3 +1091,5 @@ if __name__ == '__main__':
         Producto.create_table()
 
     menu_principal()
+
+'''''
