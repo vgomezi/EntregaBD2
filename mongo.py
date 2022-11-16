@@ -25,16 +25,23 @@ def alta_pedido_simple_m(dni_cliente_i, precio_total_i, estado_i, fecha_obj_i, c
    #if Cliente.select().where(Cliente.dni == dni_cliente_i).exists():
 
    if nro_pedido_compuesto_i:
-      pedido_simple = {"precio_total": precio_total_i, "estado": estado_i, "fecha": str(fecha_obj_i), "canal_compra": canal_compra_i, "nro_pedido_compuesto": nro_pedido_compuesto_i, "dni_cliente": dni_cliente_i, "nro_pedido_compuesto": nro_pedido_compuesto_i}
+      pedido_simple = {"precio_total": precio_total_i, "estado": estado_i, "fecha": str(fecha_obj_i), "canal_compra": canal_compra_i, "nro_pedido_compuesto": nro_pedido_compuesto_i, "dni_cliente": dni_cliente_i}
 
       pedidos.insert_one(pedido_simple)
    else:     
 
-      pedido_simple = {"precio_total": precio_total_i, "estado": estado_i, "fecha": str(fecha_obj_i), "canal_compra": canal_compra_i, "nro_pedido_compuesto": nro_pedido_compuesto_i, "dni_cliente": dni_cliente_i}
+      pedido_simple = {"precio_total": precio_total_i, "estado": estado_i, "fecha": str(fecha_obj_i), "canal_compra": canal_compra_i,"dni_cliente": dni_cliente_i}
 
       pedidos.insert_one(pedido_simple)
 
+def alta_pedido_compuesto_m(fecha_obj_i, canal_compra_i, dni_cliente_i):
 
+   #if Cliente.select().where(Cliente.dni == dni_cliente_i).exists():
+        new_pedido_c = PedidoCompuesto.create(fecha = fecha_obj_i, canal_compra = canal_compra_i, dni_cliente = dni_cliente_i)
+        new_pedido_c.save()
+        return new_pedido_c.id
+   # else:
+   #     print ("Error: cliente no existe")
 
 
 if __name__ == '__main__':   
