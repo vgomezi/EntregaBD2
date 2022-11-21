@@ -4,6 +4,8 @@ from datetime import date
 import datetime 
 import peewee
 
+#from mongo import alta_pedido_compuesto_m, alta_pedido_simple_m
+
 
 psql_db = peewee.PostgresqlDatabase('dbd2', host='localhost', port=8888,  user='dbd2g2', password='dbd2#G2')
 #host='127.0.0.1'
@@ -854,6 +856,7 @@ def menu4():
                     if respuesta == 'no':
                         break
 
+        #alta_pedido_simple_m(dni_cliente_i,precio_total_i,estado_i,fecha_obj_i, canal_compra_i,nro_pedido_compuesto_i)
         menu_principal()
             
     #except:
@@ -903,6 +906,7 @@ def menu5():
 
             respuesta = input("Desea agregar otro pedido simple? si/no: ")
         
+        #alta_pedido_compuesto_m(fecha_obj_i, canal_compra_i, dni_cliente_i)
         menu_principal()
 
     except:
