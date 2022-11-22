@@ -345,8 +345,9 @@ def listado_pedidos_en_estado(estado_i):
         
         if (estado_compuesto == estado_i):
             print("Id:", k[0], "- Costo:", costo_total, "- Fecha:", k[1], "- Canal de compra:", k[2], "- DNI del cliente:", k[3], '- Estado:', estado_compuesto)
+        
         ''''
-elif (contador_rechazados>0 and contador_rechazados<cantidad_total):
+        elif (contador_rechazados>0 and contador_rechazados<cantidad_total):
             consulta = "SELECT id, from pedido_simple WHERE estado = 'rechazado'" 
             dbms_cursor.execute(consulta)
             rows = dbms_cursor.fetchall()
@@ -1061,7 +1062,7 @@ def menu14():
     exit()
      
     
-'''''
+
 
 if __name__ == '__main__':
 
@@ -1087,5 +1088,3 @@ if __name__ == '__main__':
         Producto.create_table()
 
     menu_principal()
-
-'''''
