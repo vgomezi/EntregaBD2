@@ -1,8 +1,6 @@
 from datetime import date
 from pymongo import MongoClient
 
-from Funciona_EntregaORM import Cliente
-
 
 def get_database():
  
@@ -42,7 +40,7 @@ def alta_pedido_compuesto_m(fecha_obj_i, canal_compra_i, dni_cliente_i):
 
    pedidos = mymongo.get_collection('Pedidos')
 
-   pedido_compuesto = {"fecha": fecha_obj_i, "canal_compra": canal_compra_i, "dni_cliente": dni_cliente_i}
+   pedido_compuesto = {"fecha": str(fecha_obj_i), "canal_compra": canal_compra_i, "dni_cliente": dni_cliente_i}
 
    pedidos.insert_one(pedido_compuesto)
 
@@ -53,32 +51,52 @@ def buscar_pedido_simple_id_m(id_buscar):
 
    pedidos = mymongo.get_collection('Pedidos')
 
-   pedidos.find(
-      {"_id" : id_buscar},
-      {"precio_total": 1,
-      "estado": 1,
-      "fecha": 1,
-      "canal_compra": 1,
-      "nro_pedido_compuesto":1,
-      "dni_cliente": 1}
+   cursor = pedidos.find(
+      {'_id' : id_buscar},
+      {'precio_total': 1,
+      'estado': 1,
+      'fecha': 1,
+      'canal_compra': 1,
+      'nro_pedido_compuesto':1,
+      'dni_cliente': 1}
    )
+
+   for rec in cursor:
+      print(rec)
+      print(rec['precio_total'])
+      print(rec['estado'])
+      print(rec['fecha'])
+      print(rec["estado"])
+      print(rec['canal_compra'])
+      print(rec['nro_pedido_compuesto'])
+      print(rec['dni_cliente'])
+
+      #no sabmos por qué pero no entra al for
+
+
 
 
 def buscar_pedido_compuesto_id_m(id_buscar):
 
    pedidos = mymongo.get_collection('Pedidos')
 
-   pedidos.find(
+   cursor = pedidos.find(
       {'_id' : id_buscar},
       {'fecha': 1,
       'canal_compra': 1,
       'dni_cliente': 1}
    )
 
+   for rec in cursor:
+      print(rec)
+      print(rec['fecha'])
+      print(rec['canal_compra'])
+      print(rec['dni_cliente'])
+
+
 if __name__ == '__main__':   
 
    mymongo = get_database()
    
-   alta_pedido_simple_m(11111111, 60,'pendiente', date.today(), 'web', 1)
-   alta_pedido_compuesto_m( date.today(), 'web', 11111111)
-
+   alta_pedido_simple_m(54967202, 20,'pendiente', date.today(), 'web', None)
+   alta_pedido_compuesto_m(date.today(), 'movil', 54967202)

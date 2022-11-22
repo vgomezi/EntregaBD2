@@ -686,7 +686,7 @@ def menu_principal():
 def menu1():
     # Alta de cliente
 
-    try:
+    #try:
         dni_cliente = int(input("Ingrese un dni (sin puntos ni guiones): "))
         nombre_cliente = input("Ingrese un nombre: ")
         apellido_cliente = input("Ingrese un apellido: ")
@@ -726,8 +726,8 @@ def menu1():
 
         menu_principal()
 
-    except:
-        print("Alguno de los datos es inválido, vuelva a intentarlo")
+    #except:
+        #print("Alguno de los datos es inválido, vuelva a intentarlo")
 
 
 def menu2():
@@ -1088,3 +1088,4 @@ if __name__ == '__main__':
         Producto.create_table()
 
     menu_principal()
+
